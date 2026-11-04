@@ -8,6 +8,7 @@ using System.Windows.Threading;
 using ForzaNext.Core;
 using ForzaNext.Core.Config;
 using ForzaNext.Core.Devices;
+using ForzaNext.Core.FFB;
 using ForzaNext.Core.Virtual;
 
 namespace ForzaNext.UI;
@@ -19,6 +20,7 @@ public partial class MainWindow : Window
     private DirectInputDeviceManager? _deviceManager;
     private VirtualWheelDriver? _virtualDriver;
     private InputAggregator? _aggregator;
+    private DirectInputFFBBridge? _ffbBridge;
 
     private Thread? _feedThread;
     private CancellationTokenSource? _feedCancel;
@@ -143,9 +145,43 @@ public partial class MainWindow : Window
         }
 
         // Acquire controllers
+        Vortice.DirectInput.IDirectInputDevice8? odriveDev = null;
         foreach (var p in _profiles)
         {
-            _deviceManager.AcquireDevice(p.InstanceGuid, IntPtr.Zero);
+            var dev = _deviceManager.AcquireDevice(p.InstanceGuid, IntPtr.Zero);
+            if (p.ProductName.Contains("ODrive", StringComparison.OrdinalIgnoreCase) && dev != null)
+            {
+                odriveDev = dev;
+            }
+        }
+
+        // Initialize FFB Bridge if ODrive is available
+        if (odriveDev != null)
+        {
+            _ffbBridge = new DirectInputFFBBridge(odriveDev);
+            if (_ffbBridge.Initialize())
+            {
+                TxtConsole.Text = "[FFB] Force Feedback Bridge ativo no ODrive!";
+            }
+        }
+
+        // Hook virtual driver FFB packets
+        if (_virtualDriver != null)
+        {
+            _virtualDriver.FfbDataReceived += (packetType, dataPtr, size) =>
+            {
+                if (packetType == FfbPacketType.PT_CONSTREP && _ffbBridge != null && dataPtr != IntPtr.Zero)
+                {
+                    try
+                    {
+                        // Constant force magnitude: short (-10000..10000)
+                        short mag = System.Runtime.InteropServices.Marshal.ReadInt16(dataPtr);
+                        double norm = mag / 10000.0;
+                        _ffbBridge.ApplyForce(norm);
+                    }
+                    catch { }
+                }
+            };
         }
 
         _aggregator = new InputAggregator(_profiles);
@@ -259,9 +295,31 @@ public partial class MainWindow : Window
         MessageBox.Show("Configurações recarregadas com sucesso!", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
     }
 
+    private void BtnRegisterGameInput_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            bool ok = GameInputConfigurator.RegisterForzaRacingWheel(900);
+            if (ok)
+            {
+                MessageBox.Show("Perfil canônico do volante (VID 1234, PID BEAD) registrado com sucesso no Windows!\n\nAgora o Forza reconhecerá seu volante e pedais como volante oficial.", "Sucesso", MessageBoxButton.OK, MessageBoxImage.Information);
+                TxtConsole.Text = "[REGISTRO] Perfil do volante aplicado no GameInput com sucesso.";
+            }
+            else
+            {
+                MessageBox.Show("Não foi possível gravar a chave de registro. Execute o ForzaNextWheel como Administrador.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Erro ao registrar: {ex.Message}", "Erro", MessageBoxButton.OK, MessageBoxImage.Error);
+        }
+    }
+
     private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
     {
         StopFeeding();
+        _ffbBridge?.Dispose();
         _deviceManager?.Dispose();
         _virtualDriver?.Dispose();
     }

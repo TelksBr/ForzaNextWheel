@@ -1,0 +1,12 @@
+C:\forza-wheel-next\src\ForzaNext.Core\bin\Debug\net8.0-windows\ForzaNext.Core.deps.json
+C:\forza-wheel-next\src\ForzaNext.Core\bin\Debug\net8.0-windows\ForzaNext.Core.dll
+C:\forza-wheel-next\src\ForzaNext.Core\bin\Debug\net8.0-windows\ForzaNext.Core.pdb
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.csproj.AssemblyReference.cache
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.GeneratedMSBuildEditorConfig.editorconfig
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.AssemblyInfoInputs.cache
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.AssemblyInfo.cs
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.csproj.CoreCompileInputs.cache
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.dll
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\refint\ForzaNext.Core.dll
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ForzaNext.Core.pdb
+C:\forza-wheel-next\src\ForzaNext.Core\obj\Debug\net8.0-windows\ref\ForzaNext.Core.dll

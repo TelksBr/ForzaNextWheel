@@ -117,3 +117,4 @@ public static class NativeVJoy
     [DllImport(DllName, CallingConvention = CallingConvention.Cdecl)]
     public static extern uint Ffb_h_Packet(IntPtr Packet, out uint Type, out int DataSize, out IntPtr Data);
 }
+

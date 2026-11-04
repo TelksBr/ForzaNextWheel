@@ -161,3 +161,4 @@ public static class ProfileManager
         File.WriteAllText(path, json);
     }
 }
+

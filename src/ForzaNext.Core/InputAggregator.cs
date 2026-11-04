@@ -155,3 +155,4 @@ public class InputAggregator
             pos.ButtonsEx3 |= (1u << (buttonId - 96));
     }
 }
+

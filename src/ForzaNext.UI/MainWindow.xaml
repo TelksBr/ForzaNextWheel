@@ -307,6 +307,8 @@
 
                         <TextBlock Text="Dica de Execução:" FontWeight="Bold" FontSize="12" Foreground="#F59E0B" Margin="0,10,0,4"/>
                         <TextBlock Text="1. Conecte o ODrive e o Shifter na porta USB.&#x0a;2. Clique em 'INICIAR FEEDER' no topo desta janela.&#x0a;3. Abra o seu jogo Forza e vá em Configurações > Controles > Volante." FontSize="12" Foreground="#A1A1AA" LineHeight="20"/>
+
+                        <Button x:Name="BtnRegisterGameInput" Click="BtnRegisterGameInput_Click" Content="🔧 Aplicar Perfil do Volante no Windows (1-Clique)" Background="#0284C7" Height="38" FontWeight="Bold" Margin="0,16,0,0"/>
                     </StackPanel>
                 </Border>
             </TabItem>

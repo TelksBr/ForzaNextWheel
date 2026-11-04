@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ForzaNext.UI")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+b94424a59f6c841d540125cb444bd9f97731335a")]
 [assembly: System.Reflection.AssemblyProductAttribute("ForzaNext.UI")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ForzaNext.UI")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]
