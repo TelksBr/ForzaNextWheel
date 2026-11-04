@@ -1,0 +1,41 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{1295537C-D292-497B-A0DC-3D69E79F6A4D}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForzaNext.Core", "src\ForzaNext.Core\ForzaNext.Core.csproj", "{F3FDFBC0-9518-4C05-AB96-4EBCEF6D4D59}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForzaNext.UI", "src\ForzaNext.UI\ForzaNext.UI.csproj", "{0D5C2238-CD00-4DAC-BF1D-DB2D1F649EAD}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ForzaNext.Cli", "src\ForzaNext.Cli\ForzaNext.Cli.csproj", "{EE280BD9-E5C1-4B38-A95D-F53A806E2639}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F3FDFBC0-9518-4C05-AB96-4EBCEF6D4D59}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F3FDFBC0-9518-4C05-AB96-4EBCEF6D4D59}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F3FDFBC0-9518-4C05-AB96-4EBCEF6D4D59}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F3FDFBC0-9518-4C05-AB96-4EBCEF6D4D59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{0D5C2238-CD00-4DAC-BF1D-DB2D1F649EAD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{0D5C2238-CD00-4DAC-BF1D-DB2D1F649EAD}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{0D5C2238-CD00-4DAC-BF1D-DB2D1F649EAD}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{0D5C2238-CD00-4DAC-BF1D-DB2D1F649EAD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EE280BD9-E5C1-4B38-A95D-F53A806E2639}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EE280BD9-E5C1-4B38-A95D-F53A806E2639}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EE280BD9-E5C1-4B38-A95D-F53A806E2639}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EE280BD9-E5C1-4B38-A95D-F53A806E2639}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{F3FDFBC0-9518-4C05-AB96-4EBCEF6D4D59} = {1295537C-D292-497B-A0DC-3D69E79F6A4D}
+		{0D5C2238-CD00-4DAC-BF1D-DB2D1F649EAD} = {1295537C-D292-497B-A0DC-3D69E79F6A4D}
+		{EE280BD9-E5C1-4B38-A95D-F53A806E2639} = {1295537C-D292-497B-A0DC-3D69E79F6A4D}
+	EndGlobalSection
+EndGlobal

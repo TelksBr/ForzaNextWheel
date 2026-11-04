@@ -1,0 +1,91 @@
+[
+  {
+    "ProductGuid": "0d401209-0000-0000-0000-504944564944",
+    "InstanceGuid": "13b65510-6843-11f1-8001-444553540000",
+    "InstanceName": "ODrive-Wheel HID",
+    "ProductName": "ODrive-Wheel HID",
+    "Axes": [
+      {
+        "Id": "Clutch",
+        "AxisIndex": 3,
+        "Inverted": 0,
+        "Deadzone": 0.0
+      },
+      {
+        "Id": "Steering",
+        "AxisIndex": 0,
+        "Inverted": 0,
+        "Deadzone": 0.0
+      },
+      {
+        "Id": "Brake",
+        "AxisIndex": 4,
+        "Inverted": 0,
+        "Deadzone": 0.0
+      },
+      {
+        "Id": "Throttle",
+        "AxisIndex": 5,
+        "Inverted": 0,
+        "Deadzone": 0.0
+      }
+    ],
+    "Buttons": null,
+    "DPad": null,
+    "FFBParameters": {
+      "Const": {
+        "Magnitude": 1.0,
+        "MaximumForce": 1.0,
+        "MinimumForce": 0.0,
+        "FilterThreshold": 0.1,
+        "MinimumCoefficient": 1.0
+      },
+      "Sine": {
+        "Magnitude": 1.0,
+        "Frequency": 0.375,
+        "MaximumForce": 0.5,
+        "MinimumForce": 0.0,
+        "Phase": 0.375,
+        "EngineVibrations": {
+          "Frequency": 0.3,
+          "Strength": 0.1
+        },
+        "GearShiftVibrations": {
+          "Frequency": 1.0,
+          "Strength": 0.3
+        }
+      },
+      "Spring": {
+        "Coefficient": 0.15,
+        "Saturation": 1.0
+      },
+      "Damper": {
+        "Coefficient": 0.0,
+        "Saturation": 1.0
+      }
+    }
+  },
+  {
+    "ProductGuid": "c0011209-0000-0000-0000-504944564944",
+    "InstanceGuid": "70947a10-999d-11f1-8002-444553540000",
+    "InstanceName": "Shifter Game Controller",
+    "ProductName": "Shifter Game Controller",
+    "Axes": null,
+    "Buttons": [
+      {
+        "Id": 17,
+        "Index": 0
+      },
+      {
+        "Id": 16,
+        "Index": 1
+      },
+      {
+        "Id": 26,
+        "Index": 2
+      }
+    ],
+    "DPad": null,
+    "FFBParameters": null
+  }
+]
