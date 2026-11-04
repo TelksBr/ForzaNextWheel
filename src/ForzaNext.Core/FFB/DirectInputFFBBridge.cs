@@ -102,6 +102,21 @@ public class DirectInputFFBBridge : IDisposable
             }
             catch { }
 
+            // 3. Initialize Spring Effect (Centering Spring)
+            _springParams.Flags = EffectFlags.Cartesian | EffectFlags.ObjectOffsets;
+            _springParams.Duration = -1;
+            _springParams.Gain = 10000;
+            _springParams.TriggerButton = -1;
+            _springParams.SetAxes(_axes, _directions);
+            _springParams.Parameters = _springData;
+
+            try
+            {
+                _springEffect = _device.CreateEffect(EffectGuid.Spring, _springParams);
+                _springEffect.Start(1, EffectPlayFlags.NoDownload);
+            }
+            catch { }
+
             IsInitialized = true;
             return true;
         }

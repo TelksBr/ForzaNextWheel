@@ -159,3 +159,4 @@ public static class GameInputConfigurator
         }
     }
 }
+

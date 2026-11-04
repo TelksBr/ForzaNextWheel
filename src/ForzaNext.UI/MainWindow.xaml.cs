@@ -195,16 +195,19 @@ public partial class MainWindow : Window
                 // Poll each physical device
                 foreach (var p in _profiles)
                 {
-                    var buffer = _aggregator.GetStateBuffer(p.InstanceGuid);
-                    _deviceManager.PollDevice(p.InstanceGuid, buffer);
+                    var buffer = _aggregator?.GetStateBuffer(p.InstanceGuid);
+                    if (buffer != null)
+                        _deviceManager.PollDevice(p.InstanceGuid, buffer);
                 }
 
-                // Aggregate into vJoy position
-                var pos = _aggregator.Aggregate();
-                _lastPosition = pos;
+                if (_aggregator != null)
+                {
+                    var pos = _aggregator.Aggregate();
+                    _lastPosition = pos;
 
-                // Send to virtual wheel
-                _virtualDriver.Feed(ref pos);
+                    // Send to virtual wheel
+                    _virtualDriver?.Feed(ref pos);
+                }
 
                 Thread.Sleep(1); // 1000 Hz loop
             }
