@@ -13,7 +13,7 @@ public class InputAggregator
 
     public InputAggregator(List<ControllerProfile> profiles)
     {
-        _profiles = profiles;
+        _profiles = ProfileManager.Snapshot(profiles);
         foreach (var p in profiles)
         {
             _deviceStates[p.InstanceGuid] = new PolledInputState();
@@ -32,24 +32,24 @@ public class InputAggregator
 
     public JoystickPositionV2 Aggregate()
     {
-        var outPosition = new JoystickPositionV2();
+        var outPosition = NeutralPosition();
 
-        // Default all axes to center (vJoy range: 1 to 32768, center is 16384)
-        outPosition.AxisX = 16384;
-        outPosition.AxisY = 16384;
-        outPosition.AxisZ = 16384;
-        outPosition.AxisXRot = 16384;
-        outPosition.AxisYRot = 16384;
-        outPosition.AxisZRot = 16384;
-        outPosition.Slider = 16384;
-        outPosition.Dial = 16384;
+        bool dpadUp = false, dpadDown = false, dpadLeft = false, dpadRight = false;
+        bool physicalPovFound = false;
+        bool digitalHandbrake = false;
 
         foreach (var profile in _profiles)
         {
-            if (!_deviceStates.TryGetValue(profile.InstanceGuid, out var state))
+            if (!_deviceStates.TryGetValue(profile.InstanceGuid, out var state) || !state.IsValid)
                 continue;
 
             // Map Axes
+            // Matching standard Forza franchise vJoy bindings:
+            // Steering  -> AxisX
+            // Throttle  -> AxisZ
+            // Brake     -> AxisXRot
+            // Clutch    -> AxisYRot
+            // Handbrake -> AxisZRot
             if (profile.Axes != null)
             {
                 foreach (var axis in profile.Axes)
@@ -58,7 +58,8 @@ public class InputAggregator
                         continue;
 
                     int rawValue = state.Axes[axis.AxisIndex];
-                    int processedValue = ProcessAxisValue(rawValue, axis.Inverted == 1, axis.Deadzone);
+                    bool isSteering = axis.Id.Equals("Steering", StringComparison.OrdinalIgnoreCase);
+                    int processedValue = ProcessAxisValue(rawValue, axis.Inverted == 1, axis.Deadzone, isSteering, axis.Calibration);
 
                     switch (axis.Id)
                     {
@@ -66,16 +67,16 @@ public class InputAggregator
                             outPosition.AxisX = processedValue;
                             break;
                         case "Throttle":
-                            outPosition.AxisY = processedValue;
-                            break;
-                        case "Brake":
                             outPosition.AxisZ = processedValue;
                             break;
-                        case "Clutch":
+                        case "Brake":
                             outPosition.AxisXRot = processedValue;
                             break;
-                        case "Handbrake":
+                        case "Clutch":
                             outPosition.AxisYRot = processedValue;
+                            break;
+                        case "Handbrake":
+                            outPosition.AxisZRot = processedValue;
                             break;
                         case "Slider0":
                             outPosition.Slider = processedValue;
@@ -98,42 +99,96 @@ public class InputAggregator
                         if (isPressed)
                         {
                             SetButtonBit(ref outPosition, btn.Id);
+
+                            // Dedicated digital handbrake (Id 26 / Button 27); RB remains independent.
+                            // Pulls virtual Handbrake axis to 100% (32768) so game activates it via button OR axis!
+                            if (btn.Id == 26)
+                            {
+                                digitalHandbrake = true;
+                            }
+
+                            // Directional D-Pad Buttons
+                            if (btn.Id == 32) dpadUp = true;
+                            else if (btn.Id == 33) dpadDown = true;
+                            else if (btn.Id == 34) dpadLeft = true;
+                            else if (btn.Id == 35) dpadRight = true;
                         }
                     }
                 }
             }
 
-            // Map DPad
-            if (profile.DPad != null && state.PointOfView.Length > 0)
+            // Map physical DPad / POV if available
+            if (profile.DPad != null && profile.DPad.Index >= 0 && profile.DPad.Index < state.PointOfView.Length)
             {
-                int povVal = state.PointOfView[0];
-                if (povVal >= 0)
+                int povVal = state.PointOfView[profile.DPad.Index];
+                if (povVal is >= 0 and < 36000)
                 {
                     outPosition.bHats = (uint)povVal;
+                    physicalPovFound = true;
                 }
             }
         }
 
+        // Synthesize D-Pad POV if directional buttons pressed and no physical POV override
+        if (!physicalPovFound)
+        {
+            if (dpadUp && dpadDown) dpadUp = dpadDown = false;
+            if (dpadLeft && dpadRight) dpadLeft = dpadRight = false;
+            if (dpadUp && dpadRight) outPosition.bHats = 4500;
+            else if (dpadDown && dpadRight) outPosition.bHats = 13500;
+            else if (dpadDown && dpadLeft) outPosition.bHats = 22500;
+            else if (dpadUp && dpadLeft) outPosition.bHats = 31500;
+            else if (dpadUp) outPosition.bHats = 0;
+            else if (dpadRight) outPosition.bHats = 9000;
+            else if (dpadDown) outPosition.bHats = 18000;
+            else if (dpadLeft) outPosition.bHats = 27000;
+        }
+
+        if (digitalHandbrake) outPosition.AxisZRot = 32768;
         return outPosition;
     }
 
-    private static int ProcessAxisValue(int rawVal, bool inverted, double deadzone)
+    public static JoystickPositionV2 NeutralPosition() => new()
+    {
+        AxisX = 16384, AxisY = 16384, AxisZ = 1, AxisXRot = 1,
+        AxisYRot = 1, AxisZRot = 1, Slider = 16384, Dial = 16384,
+        bHats = uint.MaxValue, bHatsEx1 = uint.MaxValue,
+        bHatsEx2 = uint.MaxValue, bHatsEx3 = uint.MaxValue
+    };
+
+    public static int ProcessAxisValue(int rawVal, bool inverted, double deadzone, bool isSteering, AxisCalibration? calibration = null)
     {
         // DirectInput raw ranges are typically 0..65535.
         // vJoy expects 1..32768.
-        double norm = rawVal / 65535.0; // 0.0 to 1.0
+        deadzone = double.IsFinite(deadzone) ? Math.Clamp(deadzone, 0, 0.99) : 0;
+        double norm = calibration?.Normalize(rawVal, isSteering) ?? Math.Clamp(rawVal, 0, 65535) / 65535.0;
 
         if (inverted)
             norm = 1.0 - norm;
 
-        // Apply deadzone from center
         if (deadzone > 0.0)
         {
-            double center = 0.5;
-            double diff = norm - center;
-            if (Math.Abs(diff) < (deadzone / 2.0))
+            if (isSteering)
             {
-                norm = center;
+                // Steering deadzone around center
+                double center = 0.5;
+                double diff = norm - center;
+                if (Math.Abs(diff) < (deadzone / 2.0))
+                {
+                    norm = center;
+                }
+            }
+            else
+            {
+                // Pedal deadzone from rest (bottom)
+                if (norm < deadzone)
+                {
+                    norm = 0.0;
+                }
+                else
+                {
+                    norm = (norm - deadzone) / (1.0 - deadzone);
+                }
             }
         }
 
@@ -155,4 +210,3 @@ public class InputAggregator
             pos.ButtonsEx3 |= (1u << (buttonId - 96));
     }
 }
-

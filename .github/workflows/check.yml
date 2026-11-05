@@ -1,0 +1,26 @@
+name: Build and regression tests
+on: [push, pull_request]
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Validate without hardware
+        shell: pwsh
+        run: |
+          ./scripts/fetch-vjoy.ps1
+          ./scripts/check.ps1
+      - name: Check presentation without hardware
+        shell: pwsh
+        run: ./scripts/check-ui.ps1
+      - name: Publish Windows x64 application
+        shell: pwsh
+        run: dotnet publish src/ForzaNext.UI -c Release -r win-x64 --self-contained false -o artifacts/publish
+      - name: Check isolated worker startup without hardware
+        shell: pwsh
+        run: |
+          ./scripts/check-worker.ps1
+          ./scripts/check-worker.ps1 -Probe

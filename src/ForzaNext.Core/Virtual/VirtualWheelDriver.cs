@@ -1,137 +1,155 @@
-using System;
-using System.IO;
 using System.Runtime.InteropServices;
 
 namespace ForzaNext.Core.Virtual;
 
-public class VirtualWheelDriver : IDisposable
+public sealed class VirtualWheelDriver : IDisposable
 {
     private const uint DeviceId = 1;
-    private bool _isAcquired = false;
-    private GCHandle _callbackHandle;
-    private NativeVJoy.FfbCallback? _ffbCallback;
-
-    public event Action<FfbPacketType, IntPtr, int>? FfbDataReceived;
-
-    public bool IsAcquired => _isAcquired;
+    // Native code may retain this function pointer. Root it for the process lifetime.
+    private static readonly NativeVJoy.FfbCallback Callback = OnNativeFfb;
+    private static readonly object Ownership = new();
+    private static VirtualWheelDriver? _owner;
+    private bool _acquired;
+    public bool IsAcquired => _acquired;
+    public bool HasFfb { get; private set; }
+    public string? LastError { get; private set; }
+    public event Action<IntPtr, FFBPType>? FfbPacketReceived;
 
     public bool Initialize()
     {
-        EnsureNativeDll();
-
-        if (!NativeVJoy.vJoyEnabled())
+        lock (Ownership)
         {
-            Console.WriteLine("[ERROR] vJoy driver is not enabled in Windows.");
-            return false;
-        }
-
-        short version = NativeVJoy.GetvJoyVersion();
-        Console.WriteLine($"[INFO] vJoy driver detected. Version: 0x{version:X4}");
-
-        var status = NativeVJoy.GetVJDStatus(DeviceId);
-        Console.WriteLine($"[INFO] Device {DeviceId} status: {status}");
-
-        if (status == VjdStatus.VJD_STAT_BUSY)
-        {
-            Console.WriteLine($"[WARNING] Device {DeviceId} is currently busy. Attempting reset...");
-            NativeVJoy.RelinquishVJD(DeviceId);
-        }
-
-        if (!NativeVJoy.AcquireVJD(DeviceId))
-        {
-            Console.WriteLine($"[ERROR] Failed to acquire vJoy device {DeviceId}.");
-            return false;
-        }
-
-        _isAcquired = true;
-        NativeVJoy.ResetVJD(DeviceId);
-
-        // Register FFB callback safely
-        RegisterFfbCallback();
-
-        Console.WriteLine($"[SUCCESS] Virtual Wheel Device {DeviceId} acquired and ready!");
-        return true;
-    }
-
-    private void EnsureNativeDll()
-    {
-        // If vJoyInterface.dll is not in current AppDomain, copy from known locations
-        string targetPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "vJoyInterface.dll");
-        if (!File.Exists(targetPath))
-        {
-            string[] searchPaths = {
-                @"C:\Program Files\vJoy\x64\vJoyInterface.dll",
-                @"C:\forza_emuwheel_v1.4a\vJoyInterface.dll"
-            };
-
-            foreach (var p in searchPaths)
+            if (_acquired) return true;
+            try
             {
-                if (File.Exists(p))
-                {
-                    try
-                    {
-                        File.Copy(p, targetPath, true);
-                        Console.WriteLine($"[INFO] Copied vJoyInterface.dll from {p}");
-                        break;
-                    }
-                    catch { }
-                }
+                if (_owner != null) throw new InvalidOperationException("vJoy já está em uso por esta aplicação.");
+                LoadInstalledLibrary();
+                FfbAbiValidation.Verify();
+                if (!NativeVJoy.vJoyEnabled()) throw new InvalidOperationException("Driver vJoy não está habilitado.");
+                ushort dll = 0, driver = 0;
+                if (!NativeVJoy.DriverMatch(ref dll, ref driver))
+                    throw new InvalidOperationException($"Versões incompatíveis do vJoy: DLL {dll:X}, driver {driver:X}.");
+                var status = NativeVJoy.GetVJDStatus(DeviceId);
+                if (status != VjdStatus.VJD_STAT_FREE)
+                    throw new InvalidOperationException($"vJoy 1 indisponível: {status}. Feche outros feeders e confira o dispositivo.");
+                if (!NativeVJoy.AcquireVJD(DeviceId)) throw new InvalidOperationException("Não foi possível adquirir vJoy 1.");
+                _acquired = true;
+                if (!NativeVJoy.ResetVJD(DeviceId)) throw new InvalidOperationException("Falha ao resetar vJoy 1.");
+                HasFfb = NativeVJoy.IsDeviceFfb(DeviceId);
+                NativeVJoy.FfbRegisterGenCB(Callback, IntPtr.Zero);
+                Volatile.Write(ref _owner, this);
+                if (!Neutralize()) throw new InvalidOperationException("Falha ao enviar estado neutro ao vJoy.");
+                LastError = null;
+                return true;
+            }
+            catch (Exception ex)
+            {
+                LastError = ex.Message;
+                DiagnosticLog.Write("vJoy initialize", ex.ToString());
+                Dispose();
+                return false;
             }
         }
     }
 
-    private void RegisterFfbCallback()
+    private static IntPtr _library;
+    public static FfbAbiResult VerifyFfbAbi() { LoadInstalledLibrary(); return FfbAbiValidation.Verify(); }
+    public static VJoyInspection Inspect()
     {
         try
         {
-            _ffbCallback = OnNativeFfb;
-            _callbackHandle = GCHandle.Alloc(_ffbCallback);
-            NativeVJoy.FfbRegisterGenCB(_ffbCallback, IntPtr.Zero);
-            Console.WriteLine("[INFO] FFB Callback registered successfully.");
+            LoadInstalledLibrary();
+            bool enabled = NativeVJoy.vJoyEnabled();
+            ushort dll = 0, driver = 0;
+            bool matches = NativeVJoy.DriverMatch(ref dll, ref driver);
+            var names = VJoyInspection.RecommendedAxes;
+            uint[] usages = { 0x30, 0x31, 0x32, 0x33, 0x34, 0x35, 0x36, 0x37 };
+            var axes = names.Where((_, index) => NativeVJoy.GetVJDAxisExist(DeviceId, usages[index])).ToArray();
+            return new(true, enabled, matches, NativeVJoy.GetVJDStatus(DeviceId),
+                NativeVJoy.GetVJDButtonNumber(DeviceId), NativeVJoy.GetVJDContPovNumber(DeviceId), axes,
+                NativeVJoy.IsDeviceFfb(DeviceId), null, dll, driver);
         }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"[WARNING] Could not register FFB Callback: {ex.Message}");
-        }
+        catch (DllNotFoundException) { return new(false, false, false, VjdStatus.VJD_STAT_MISS, 0, 0, Array.Empty<string>(), false, null); }
+        catch (FileNotFoundException) { return new(false, false, false, VjdStatus.VJD_STAT_MISS, 0, 0, Array.Empty<string>(), false, null); }
+        catch (Exception ex) { return new(true, false, false, VjdStatus.VJD_STAT_UNKN, 0, 0, Array.Empty<string>(), false, ex.Message); }
     }
 
-    private void OnNativeFfb(IntPtr data, IntPtr userData)
+    private static void LoadInstalledLibrary()
     {
-        if (data == IntPtr.Zero) return;
+        if (_library != IntPtr.Zero) return;
+        var installed = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "vJoy", "x64", "vJoyInterface.dll");
+        var bundled = Path.Combine(AppContext.BaseDirectory, "vJoyInterface.dll");
+        var path = File.Exists(installed) ? installed : bundled;
+        _library = NativeLibrary.Load(path);
+        NativeLibrary.SetDllImportResolver(typeof(NativeVJoy).Assembly,
+            (name, _, _) => name == "vJoyInterface.dll" ? _library : IntPtr.Zero);
+    }
 
+    private static void OnNativeFfb(IntPtr data, IntPtr userData)
+    {
+        var owner = Volatile.Read(ref _owner);
+        if (owner == null || data == IntPtr.Zero) return;
         try
         {
-            uint res = NativeVJoy.Ffb_h_Type(data, out var packetType);
-            if (res == 0) // ERROR_SUCCESS
-            {
-                NativeVJoy.Ffb_h_Packet(data, out _, out int dataSize, out IntPtr packetData);
-                FfbDataReceived?.Invoke(packetType, packetData, dataSize);
-            }
+            int id = 0;
+            var type = FFBPType.PT_EFFREP;
+            if (NativeVJoy.Ffb_h_DeviceID(data, ref id) == 0 && id == DeviceId &&
+                NativeVJoy.Ffb_h_Type(data, ref type) == 0)
+                owner.FfbPacketReceived?.Invoke(data, type);
         }
-        catch
-        {
-            // Suppress callback exceptions to prevent kernel-level unwinding crash
-        }
+        catch (Exception ex) { DiagnosticLog.Write("FFB callback", ex.ToString()); }
     }
 
     public bool Feed(ref JoystickPositionV2 state)
     {
-        if (!_isAcquired) return false;
+        if (!_acquired) return false;
         state.bDevice = (byte)DeviceId;
         return NativeVJoy.UpdateVJD(DeviceId, ref state);
     }
 
+    public void ValidateMappings(List<Config.ControllerProfile> profiles)
+    {
+        int required = RequiredButtonCount(profiles);
+        int available = NativeVJoy.GetVJDButtonNumber(DeviceId);
+        if (required > available)
+            throw new InvalidOperationException($"vJoy 1 possui {available} botões; seu perfil exige {required}. Abra Configure vJoy, selecione o dispositivo 1 e habilite 128 botões (Buttons). Aplique e inicie novamente.");
+        var usages = new Dictionary<string, uint> { ["Steering"] = 0x30, ["Throttle"] = 0x32, ["Brake"] = 0x33,
+            ["Clutch"] = 0x34, ["Handbrake"] = 0x35, ["Slider0"] = 0x36, ["Slider1"] = 0x37 };
+        foreach (var p in profiles)
+        {
+            foreach (var a in p.Axes ?? new())
+                if (!NativeVJoy.GetVJDAxisExist(DeviceId, usages[a.Id]))
+                    throw new InvalidOperationException($"Habilite o eixo virtual {a.Id} no vJoy 1.");
+            if ((p.DPad != null || p.Buttons?.Any(b => b.Id is >= 32 and <= 35) == true) && NativeVJoy.GetVJDContPovNumber(DeviceId) < 1)
+                throw new InvalidOperationException("Habilite um POV contínuo no vJoy 1 para usar o D-pad de oito direções.");
+        }
+    }
+
+    public static int RequiredButtonCount(IEnumerable<Config.ControllerProfile> profiles) => profiles
+        .SelectMany(p => p.Buttons ?? new()).Where(b => b.Id is not (>= 32 and <= 35))
+        .Select(b => b.Id + 1).DefaultIfEmpty(0).Max();
+
+    public bool Neutralize()
+    {
+        var neutral = InputAggregator.NeutralPosition();
+        return Feed(ref neutral);
+    }
+
     public void Dispose()
     {
-        if (_isAcquired)
+        lock (Ownership)
         {
-            NativeVJoy.ResetVJD(DeviceId);
-            NativeVJoy.RelinquishVJD(DeviceId);
-            _isAcquired = false;
+            if (ReferenceEquals(_owner, this)) Volatile.Write(ref _owner, null);
+            if (!_acquired) return;
+            try
+            {
+                if (!Neutralize()) DiagnosticLog.Write("vJoy stop", "Neutral report failed.");
+            }
+            finally
+            {
+                try { NativeVJoy.RelinquishVJD(DeviceId); }
+                finally { _acquired = false; }
+            }
         }
-
-        if (_callbackHandle.IsAllocated)
-            _callbackHandle.Free();
     }
 }
-

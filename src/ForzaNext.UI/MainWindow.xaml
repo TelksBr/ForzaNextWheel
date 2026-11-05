@@ -1,322 +1,562 @@
-<Window x:Class="ForzaNext.UI.MainWindow"
-        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="ForzaNext Wheel - Universal Sim-Racing Bridge" 
-        Height="720" Width="1050" 
-        WindowStartupLocation="CenterScreen"
-        Background="#121214" Foreground="#F4F4F5"
-        FontFamily="Segoe UI">
-
+<Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" x:Class="ForzaNext.UI.MainWindow" Title="ForzaNext Wheel" Width="1360" Height="880" MinWidth="1080" MinHeight="720" WindowStartupLocation="CenterScreen" FontFamily="Segoe UI" Background="{DynamicResource CanvasBrush}" Foreground="{DynamicResource TextBrush}" PreviewKeyDown="Shell_KeyDown">
     <Window.Resources>
-        <!-- Modern Dark Theme Styles -->
-        <Style TargetType="TabControl">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-        </Style>
-
-        <Style TargetType="TabItem">
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="TabItem">
-                        <Border x:Name="TabBorder" Background="#1E1E24" Margin="0,0,4,0" Padding="16,10" CornerRadius="6,6,0,0">
-                            <ContentPresenter ContentSource="Header" TextElement.FontWeight="SemiBold" TextElement.Foreground="#A1A1AA"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#27272A"/>
-                                <Setter Property="Foreground" Value="#38BDF8"/>
-                            </Trigger>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="TabBorder" Property="Background" Value="#2D2D35"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="Button">
-            <Setter Property="Background" Value="#3F3F46"/>
-            <Setter Property="Foreground" Value="#FAFAFA"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Padding" Value="14,8"/>
-            <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="BtnBorder" Background="{TemplateBinding Background}" CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.85"/>
-                            </Trigger>
-                            <Trigger Property="IsEnabled" Value="False">
-                                <Setter TargetName="BtnBorder" Property="Opacity" Value="0.4"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
-
-        <Style TargetType="ProgressBar">
-            <Setter Property="Background" Value="#27272A"/>
-            <Setter Property="Foreground" Value="#38BDF8"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Height" Value="16"/>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Themes/DesignSystem.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <Style TargetType="Expander">
+                <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+                <Setter Property="Margin" Value="0,0,0,14"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Expander">
+                            <StackPanel>
+                                <ToggleButton IsChecked="{Binding IsExpanded,RelativeSource={RelativeSource TemplatedParent}}" Foreground="{TemplateBinding Foreground}" HorizontalContentAlignment="Stretch" Cursor="Hand" FocusVisualStyle="{StaticResource FocusRing}">
+                                    <ToggleButton.Template>
+                                        <ControlTemplate TargetType="ToggleButton">
+                                            <Border Background="Transparent" Padding="0,4">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions><ColumnDefinition Width="22"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                                                    <Path x:Name="Chevron" Data="M 0,0 L 5,5 L 0,10" Width="5" Height="10" Stroke="#A4AEBB" StrokeThickness="1.5" RenderTransformOrigin="0.5,0.5" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                                    <ContentPresenter Grid.Column="1"/>
+                                                </Grid>
+                                            </Border>
+                                            <ControlTemplate.Triggers><Trigger Property="IsChecked" Value="True"><Setter TargetName="Chevron" Property="RenderTransform"><Setter.Value><RotateTransform Angle="90"/></Setter.Value></Setter></Trigger></ControlTemplate.Triggers>
+                                        </ControlTemplate>
+                                    </ToggleButton.Template>
+                                    <ContentPresenter ContentSource="Header"/>
+                                </ToggleButton>
+                                <ContentPresenter x:Name="Body" ContentSource="Content" Visibility="Collapsed"/>
+                            </StackPanel>
+                            <ControlTemplate.Triggers><Trigger Property="IsExpanded" Value="True"><Setter TargetName="Body" Property="Visibility" Value="Visible"/></Trigger></ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
+        </ResourceDictionary>
     </Window.Resources>
-
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <Border Grid.Row="0" Background="#18181B" CornerRadius="8" Padding="16" Margin="0,0,0,16">
-            <Grid>
+    <Grid Background="{StaticResource CanvasBrush}">
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="212"/>
+            <ColumnDefinition Width="*"/>
+        </Grid.ColumnDefinitions>
+        <Border Background="{StaticResource SidebarBrush}" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,0,1,0" Padding="20,30">
+            <DockPanel>
+                <StackPanel DockPanel.Dock="Top">
+                    <TextBlock Text="◉  FORZANEXT" FontSize="18" FontWeight="Bold"/>
+                    <TextBlock Text="W H E E L   B R I D G E" Style="{StaticResource Caption}" Margin="28,6,0,20"/>
+                    <TextBlock Text="PERFIL ATIVO" Style="{StaticResource Caption}" Margin="0,0,0,8"/>
+                    <ComboBox x:Name="ProfilePicker" SelectionChanged="Profile_Changed" IsEnabled="{Binding CanEdit}" Margin="0,0,0,8"><ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis"/></DataTemplate></ComboBox.ItemTemplate></ComboBox>
+                    <Button Content="Gerenciar perfis" Click="ManageProfiles_Click" IsEnabled="{Binding CanEdit}" Margin="0,0,0,20"/>
+                    <RadioButton x:Name="Nav0" GroupName="Navigation" Style="{StaticResource NavButton}" Tag="0" Checked="Navigate_Checked">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Visão geral"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="Nav1" GroupName="Navigation" Style="{StaticResource NavButton}" Tag="1" Checked="Navigate_Checked">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Controles"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="Nav2" GroupName="Navigation" Style="{StaticResource NavButton}" Tag="2" Checked="Navigate_Checked">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Force Feedback"/>
+                        </StackPanel>
+                    </RadioButton>
+                    <RadioButton x:Name="Nav3" GroupName="Navigation" Style="{StaticResource NavButton}" Tag="3" Checked="Navigate_Checked">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock FontFamily="Segoe MDL2 Assets" Text="" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                            <TextBlock Text="Diagnóstico"/>
+                        </StackPanel>
+                    </RadioButton>
+                </StackPanel>
+                <StackPanel DockPanel.Dock="Bottom" VerticalAlignment="Bottom">
+                    <Border Background="{Binding StatusBackground}" CornerRadius="8" Padding="12">
+                        <TextBlock Text="{Binding StatusLabel}" Foreground="{Binding StatusColor}" FontSize="11"/>
+                    </Border>
+                    <TextBlock Text="ForzaNext Wheel · 2.1.2" Style="{StaticResource Caption}" Margin="2,14,0,0"/>
+                    <TextBlock Text="{Binding PreviewLabel}" Foreground="#FFB294" FontSize="9" Margin="2,8,0,0" Visibility="{Binding IsPreview, Converter={StaticResource BoolVisibility}}"/>
+                </StackPanel>
+                <Grid/>
+            </DockPanel>
+        </Border>
+        <Grid Grid.Column="1" Margin="32,28,32,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            <Grid Margin="0,0,0,25">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-
-                <StackPanel Orientation="Vertical">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="FORZANEXT WHEEL" FontSize="20" FontWeight="Bold" Foreground="#38BDF8"/>
-                        <Border Background="#0284C7" CornerRadius="4" Padding="6,2" Margin="10,0,0,0">
-                            <TextBlock Text="v2.0 • 1000 Hz" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
-                        </Border>
-                        <Border Background="#22C55E" CornerRadius="4" Padding="6,2" Margin="6,0,0,0">
-                            <TextBlock Text="ODrive &amp; DIY Support" FontSize="11" FontWeight="Bold" Foreground="#FFFFFF"/>
-                        </Border>
-                    </StackPanel>
-                    <TextBlock Text="Emulador de Volante de Corrida Universal de Baixa Latência para a Franquia Forza" FontSize="12" Foreground="#71717A" Margin="0,4,0,0"/>
+                <StackPanel>
+                    <TextBlock x:Name="PageTitle" Text="Visão geral" FontSize="27" FontWeight="SemiBold"/>
+                    <TextBlock x:Name="PageDescription" Text="Seu setup. Uma conexão com a pista." Style="{StaticResource BodyMuted}" Margin="0,5,16,0"/>
                 </StackPanel>
-
-                <!-- Start/Stop Master Button -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button x:Name="BtnToggleFeeder" Click="BtnToggleFeeder_Click" Width="160" Height="42" FontSize="14" Background="#10B981" Foreground="#FFFFFF">
-                        <StackPanel Orientation="Horizontal">
-                            <TextBlock x:Name="TxtFeederBtn" Text="▶ INICIAR FEEDER" FontWeight="Bold"/>
-                        </StackPanel>
+                    <Button Content="{Binding SaveLabel}" Click="BtnSaveConfig_Click" IsEnabled="{Binding CanSave}" Margin="0,0,10,0" ToolTip="Salvar perfil (Ctrl+S)"/>
+                    <Button x:Name="BtnToggleFeeder" Click="BtnToggleFeeder_Click" Style="{StaticResource PrimaryButton}" Background="{Binding PrimaryBackground}" Foreground="{Binding PrimaryForeground}" MinWidth="156">
+                        <TextBlock x:Name="TxtFeederBtn" Text="{Binding PrimaryAction}" Foreground="{Binding PrimaryForeground}"/>
                     </Button>
                 </StackPanel>
             </Grid>
-        </Border>
-
-        <!-- Main Tabs -->
-        <TabControl Grid.Row="1">
-            <!-- TAB 1: MONITOR EM TEMPO REAL -->
-            <TabItem Header="📊 Dashboard &amp; Monitor">
-                <Border Background="#18181B" CornerRadius="0,8,8,8" Padding="20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                        </Grid.RowDefinitions>
-
-                        <!-- Dispositivos Detectados -->
-                        <Grid Grid.Row="0" Margin="0,0,0,16">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <Border Grid.Column="0" Background="#27272A" CornerRadius="6" Padding="12" Margin="0,0,6,0">
-                                <StackPanel>
-                                    <TextBlock Text="DRIVER VIRTUAL" FontSize="11" FontWeight="Bold" Foreground="#A1A1AA"/>
-                                    <TextBlock x:Name="TxtVirtualStatus" Text="Pronto (Integrado)" FontSize="14" FontWeight="SemiBold" Foreground="#22C55E" Margin="0,2,0,0"/>
-                                </StackPanel>
+            <TabControl x:Name="MainTabs" Grid.Row="1" Background="Transparent" BorderThickness="0">
+                <TabControl.Template>
+                    <ControlTemplate TargetType="TabControl">
+                        <ContentPresenter ContentSource="SelectedContent"/>
+                    </ControlTemplate>
+                </TabControl.Template>
+                <TabItem>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,12,0">
+                            <Border Style="{StaticResource Panel}" Margin="0,0,0,20">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding StatusLabel}" Style="{StaticResource Caption}" Foreground="{Binding StatusColor}"/>
+                                        <TextBlock Text="{Binding Headline}" FontSize="29" FontWeight="SemiBold" Margin="0,10,0,8" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding Description}" Style="{StaticResource BodyMuted}" MaxWidth="600" HorizontalAlignment="Left"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="1" Text="↗" FontSize="48" Foreground="{StaticResource AccentBrush}" Margin="24,0,0,0" VerticalAlignment="Center"/>
+                                </Grid>
                             </Border>
-
-                            <Border Grid.Column="1" Background="#27272A" CornerRadius="6" Padding="12" Margin="3,0,3,0">
-                                <StackPanel>
-                                    <TextBlock Text="VOLANTE (DIRECT DRIVE)" FontSize="11" FontWeight="Bold" Foreground="#A1A1AA"/>
-                                    <TextBlock x:Name="TxtWheelStatus" Text="ODrive-Wheel HID" FontSize="14" FontWeight="SemiBold" Foreground="#38BDF8" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Grid.Column="2" Background="#27272A" CornerRadius="6" Padding="12" Margin="6,0,0,0">
-                                <StackPanel>
-                                    <TextBlock Text="CÂMBIO / SHIFTER" FontSize="11" FontWeight="Bold" Foreground="#A1A1AA"/>
-                                    <TextBlock x:Name="TxtShifterStatus" Text="Shifter Game Controller" FontSize="14" FontWeight="SemiBold" Foreground="#EAB308" Margin="0,2,0,0"/>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
-
-                        <!-- Live Telemetry Bars -->
-                        <Grid Grid.Row="1">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="2*"/>
-                                <ColumnDefinition Width="*"/>
-                            </Grid.ColumnDefinitions>
-
-                            <!-- Eixos -->
-                            <StackPanel Grid.Column="0" Margin="0,0,16,0">
-                                <TextBlock Text="EIXOS DE ENTRADA (FEEDER ATIVO)" FontSize="13" FontWeight="Bold" Foreground="#E4E4E7" Margin="0,0,0,12"/>
-
-                                <TextBlock Text="Volante (Eixo X):" FontSize="12" Foreground="#A1A1AA"/>
-                                <ProgressBar x:Name="PbSteering" Minimum="1" Maximum="32768" Value="16384" Height="22" Margin="0,4,0,12" Foreground="#38BDF8"/>
-
-                                <TextBlock Text="Acelerador (Throttle):" FontSize="12" Foreground="#A1A1AA"/>
-                                <ProgressBar x:Name="PbThrottle" Minimum="1" Maximum="32768" Value="1" Height="18" Margin="0,4,0,12" Foreground="#22C55E"/>
-
-                                <TextBlock Text="Freio (Brake):" FontSize="12" Foreground="#A1A1AA"/>
-                                <ProgressBar x:Name="PbBrake" Minimum="1" Maximum="32768" Value="1" Height="18" Margin="0,4,0,12" Foreground="#EF4444"/>
-
-                                <TextBlock Text="Embreagem (Clutch):" FontSize="12" Foreground="#A1A1AA"/>
-                                <ProgressBar x:Name="PbClutch" Minimum="1" Maximum="32768" Value="1" Height="18" Margin="0,4,0,12" Foreground="#F59E0B"/>
-                            </StackPanel>
-
-                            <!-- Marchas e Botões -->
-                            <Border Grid.Column="1" Background="#27272A" CornerRadius="8" Padding="16">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock Text="MARCHA ATUAL" FontSize="12" FontWeight="Bold" Foreground="#A1A1AA" HorizontalAlignment="Center"/>
-                                    <Border Background="#18181B" CornerRadius="12" Width="100" Height="100" Margin="0,10,0,16">
-                                        <TextBlock x:Name="TxtCurrentGear" Text="N" FontSize="52" FontWeight="Bold" Foreground="#38BDF8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <Grid Margin="0,0,0,20">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition/>
+                                    <ColumnDefinition/>
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Style="{StaticResource Panel}" Margin="0,0,12,0" Padding="18">
+                                    <StackPanel>
+                                        <TextBlock Text="01  VOLANTE VIRTUAL" Style="{StaticResource Caption}"/>
+                                        <TextBlock x:Name="TxtVirtualStatus" Text="Aguardando dispositivo" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,6" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                                        <TextBlock Text="vJoy · conexão com o jogo" Style="{StaticResource BodyMuted}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="1" Style="{StaticResource Panel}" Margin="0,0,12,0" Padding="18">
+                                    <StackPanel>
+                                        <TextBlock Text="02  VOLANTE FÍSICO" Style="{StaticResource Caption}"/>
+                                        <TextBlock x:Name="TxtWheelStatus" Text="Aguardando dispositivo" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,6" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                                        <TextBlock Text="Direção e retorno de força" Style="{StaticResource BodyMuted}"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Grid.Column="2" Style="{StaticResource Panel}" Margin="0,0,0,0" Padding="18">
+                                    <StackPanel>
+                                        <TextBlock Text="03  CÂMBIO / BUTTON BOX" Style="{StaticResource Caption}"/>
+                                        <TextBlock x:Name="TxtShifterStatus" Text="Aguardando dispositivo" FontSize="14" FontWeight="SemiBold" Margin="0,12,0,6" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text, RelativeSource={RelativeSource Self}}"/>
+                                        <TextBlock Text="Entradas adicionais" Style="{StaticResource BodyMuted}"/>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="2*"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource Panel}" Margin="0,0,16,0">
+                                    <StackPanel>
+                                        <TextBlock Text="Monitor de entradas" Style="{StaticResource SectionTitle}"/>
+                                            <TextBlock Text="{Binding MonitorDescription}" Style="{StaticResource BodyMuted}" Margin="0,5,0,14"/>
+                                        <Grid Margin="0,0,0,22">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="150"/>
+                                                <ColumnDefinition/>
+                                            </Grid.ColumnDefinitions>
+                                            <Viewbox Width="94" Height="94" HorizontalAlignment="Left">
+                                                <Canvas Width="120" Height="120" RenderTransformOrigin="0.5,0.5">
+                                                    <Canvas.RenderTransform>
+                                                        <RotateTransform x:Name="WheelRotation"/>
+                                                    </Canvas.RenderTransform>
+                                                    <Ellipse Width="110" Height="110" Canvas.Left="5" Canvas.Top="5" Stroke="#A4AEBB" StrokeThickness="8"/>
+                                                    <Path Data="M 10,49 L 45,60 L 60,108 L 75,60 L 110,49" Stroke="#A4AEBB" StrokeThickness="7" StrokeLineJoin="Round"/>
+                                                    <Ellipse Width="30" Height="30" Canvas.Left="45" Canvas.Top="45" Fill="#222730" Stroke="#A4AEBB" StrokeThickness="4"/>
+                                                    <Line X1="60" Y1="5" X2="60" Y2="18" Stroke="#C3F66A" StrokeThickness="6"/>
+                                                </Canvas>
+                                            </Viewbox>
+                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                <TextBlock Text="DIREÇÃO" Style="{StaticResource Caption}"/>
+                                                <TextBlock x:Name="TxtSteeringPercent" Text="Centralizado" FontSize="22" FontWeight="SemiBold" Margin="0,6,0,14"/>
+                                                <ProgressBar x:Name="PbSteering" Minimum="1" Maximum="32768" Value="16384"/>
+                                            </StackPanel>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition/>
+                                                <RowDefinition/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="Acelerador" FontSize="12"/>
+                                            <TextBlock x:Name="TxtThrottlePercent" Grid.Column="1" Text="0%" Style="{StaticResource Caption}"/>
+                                            <ProgressBar x:Name="PbThrottle" Grid.Row="1" Grid.ColumnSpan="2" Minimum="1" Maximum="32768" Value="1" Margin="0,9,0,0"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition/>
+                                                <RowDefinition/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="Freio" FontSize="12"/>
+                                            <TextBlock x:Name="TxtBrakePercent" Grid.Column="1" Text="0%" Style="{StaticResource Caption}"/>
+                                            <ProgressBar x:Name="PbBrake" Grid.Row="1" Grid.ColumnSpan="2" Minimum="1" Maximum="32768" Value="1" Margin="0,9,0,0"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition/>
+                                                <RowDefinition/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="Embreagem" FontSize="12"/>
+                                            <TextBlock x:Name="TxtClutchPercent" Grid.Column="1" Text="0%" Style="{StaticResource Caption}"/>
+                                            <ProgressBar x:Name="PbClutch" Grid.Row="1" Grid.ColumnSpan="2" Minimum="1" Maximum="32768" Value="1" Margin="0,9,0,0"/>
+                                        </Grid>
+                                        <Grid Margin="0,0,0,12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <Grid.RowDefinitions>
+                                                <RowDefinition/>
+                                                <RowDefinition/>
+                                            </Grid.RowDefinitions>
+                                            <TextBlock Text="Freio de mão" FontSize="12"/>
+                                            <TextBlock x:Name="TxtHandbrakePercent" Grid.Column="1" Text="0%" Style="{StaticResource Caption}"/>
+                                            <ProgressBar x:Name="PbHandbrake" Grid.Row="1" Grid.ColumnSpan="2" Minimum="1" Maximum="32768" Value="1" Margin="0,9,0,0"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <Border Style="{StaticResource Panel}">
+                                        <StackPanel>
+                                            <TextBlock Text="MARCHA ATUAL" Style="{StaticResource Caption}"/>
+                                            <TextBlock x:Name="TxtCurrentGear" Text="N" FontSize="66" FontWeight="SemiBold" Foreground="{StaticResource AccentBrush}" Margin="0,8,0,10"/>
+                                            <TextBlock Text="BOTÕES ATIVOS" Style="{StaticResource Caption}"/>
+                                            <TextBlock x:Name="TxtActiveButtons" Text="Nenhum botão pressionado" Style="{StaticResource BodyMuted}" Margin="0,8,0,0"/>
+                                        </StackPanel>
                                     </Border>
-
-                                    <TextBlock Text="BOTÕES ATIVOS" FontSize="12" FontWeight="Bold" Foreground="#A1A1AA" Margin="0,0,0,8" HorizontalAlignment="Center"/>
-                                    <TextBlock x:Name="TxtActiveButtons" Text="Nenhum botão pressionado" FontSize="12" Foreground="#71717A" HorizontalAlignment="Center"/>
+                                    <Border Style="{StaticResource Panel}" Margin="0,16,0,0">
+                                        <StackPanel>
+                                            <DockPanel>
+                                                <TextBlock Text="Retorno de força" FontSize="12"/>
+                                                <TextBlock x:Name="TxtFfbForceValue" Text="0%" HorizontalAlignment="Right"/>
+                                            </DockPanel>
+                                            <ProgressBar x:Name="PbFfbForce" Maximum="10000" Margin="0,12,0,20"/>
+                                            <TextBlock Text="CONEXÃO" Style="{StaticResource Caption}"/>
+                                            <TextBlock x:Name="TxtRate" Text="— Hz" FontSize="24" Margin="0,6,0,3"/>
+                                            <TextBlock x:Name="TxtInterval" Text="Aguardando sessão" Style="{StaticResource BodyMuted}"/>
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+                            </Grid>
+                            <Border Style="{StaticResource Panel}" Margin="0,20,0,0" Padding="18">
+                                <DockPanel>
+                                    <Button DockPanel.Dock="Right" Content="Configurar controles  →" Click="GoControls_Click"/>
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding MappingStatus}" FontWeight="SemiBold"/>
+                                        <TextBlock Text="{Binding MappingDescription}" Style="{StaticResource BodyMuted}" Margin="0,4,14,0"/>
+                                    </StackPanel>
+                                </DockPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem>
+                    <DockPanel>
+                        <Border DockPanel.Dock="Top" Style="{StaticResource Panel}" Margin="0,0,12,18" Padding="18">
+                            <DockPanel>
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal">
+                                    <Button Content="Desfazer" Click="UndoMapping_Click" IsEnabled="{Binding CanEdit}" Visibility="{Binding HasUndo,Converter={StaticResource BoolVisibility}}" Margin="0,0,8,0"/>
+                                    <Button Content="Recarregar" Click="BtnReloadConfig_Click" IsEnabled="{Binding CanEdit}" Margin="0,0,8,0"/>
+                                    <Button x:Name="BtnCancelDetect" Content="Cancelar · Esc" Click="BtnCancelDetect_Click" Visibility="Collapsed"/>
+                                </StackPanel>
+                                <StackPanel>
+                                    <TextBlock x:Name="TxtMappingTitle" Text="Cada controle no seu lugar." FontWeight="SemiBold"/>
+                                    <TextBlock x:Name="TxtMappingStatus" Text="Clique em Mapear e acione a entrada física desejada." Style="{StaticResource BodyMuted}" Margin="0,5,12,0"/>
+                                </StackPanel>
+                            </DockPanel>
+                        </Border>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding MappingSections}" Margin="0,0,12,0">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Style="{StaticResource Panel}" Margin="0,0,0,14" Padding="18">
+                                            <Expander IsExpanded="{Binding Expanded, Mode=OneTime}" Margin="0">
+                                                <Expander.Header>
+                                                    <StackPanel Margin="8,0,0,10">
+                                                        <TextBlock Text="{Binding Title}" FontSize="16" FontWeight="SemiBold"/>
+                                                        <TextBlock Text="{Binding Description}" Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                                    </StackPanel>
+                                                </Expander.Header>
+                                                <ItemsControl ItemsSource="{Binding Rows}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate>
+                                                            <Border BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0" Padding="4,13">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="170"/>
+                                                                        <ColumnDefinition Width="*"/>
+                                                                        <ColumnDefinition Width="80"/>
+                                                                        <ColumnDefinition Width="90"/>
+                                                                        <ColumnDefinition Width="90"/>
+                                                                        <ColumnDefinition Width="38"/>
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <TextBlock Text="{Binding Title}" VerticalAlignment="Center"/>
+                                                                    <StackPanel Grid.Column="1" Margin="0,0,12,0">
+                                                                        <TextBlock Text="{Binding Source}" Foreground="{Binding SourceColor}" TextTrimming="CharacterEllipsis"/>
+                                                                        <TextBlock Text="{Binding SourceDetail}" Style="{StaticResource Caption}" Margin="0,4,0,0"/>
+                                                                    </StackPanel>
+                                                                    <CheckBox Grid.Column="2" Content="Inverter" IsChecked="{Binding Inverted}" Visibility="{Binding IsAxis,Converter={StaticResource BoolVisibility}}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}" VerticalAlignment="Center" Click="MappingInvert_Click"/>
+                                                                    <Button Grid.Column="3" Content="Calibrar" Tag="{Binding}" Click="CalibrateRow_Click" Visibility="{Binding IsAxis,Converter={StaticResource BoolVisibility}}" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}" Margin="0,0,6,0"/>
+                                                                    <Button Grid.Column="4" Content="Mapear" Tag="{Binding}" Click="MapRow_Click" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                    <Button Grid.Column="5" Content="×" FontSize="18" Padding="0" Margin="6,0,0,0" Tag="{Binding}" Click="ClearRow_Click" ToolTip="Remover associação" IsEnabled="{Binding DataContext.CanEdit,RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                                                </Grid>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </Expander>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </DockPanel>
+                </TabItem>
+                <TabItem>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,12,0">
+                            <Border Style="{StaticResource Panel}" Margin="0,0,0,18">
+                                <StackPanel>
+                                    <TextBlock Text="Sinta a pista, do seu jeito." FontSize="24" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding FfbDescription}" Style="{StaticResource BodyMuted}" Margin="0,10,0,0"/>
+                                    <TextBlock Text="Ajustes aplicados em tempo real durante a sessão. Salve para manter seu perfil." Style="{StaticResource BodyMuted}" Margin="0,8,0,0"/>
                                 </StackPanel>
                             </Border>
-                        </Grid>
-                    </Grid>
-                </Border>
-            </TabItem>
-
-            <!-- TAB 2: CONFIGURADOR & MAPEAMENTO -->
-            <TabItem Header="⚙️ Mapeamento de Controles">
-                <Border Background="#18181B" CornerRadius="0,8,8,8" Padding="20">
-                    <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="*"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-
-                        <TextBlock Grid.Row="0" Text="Configuração e Mapeamento de Hardware (Salvo em configuration.json)" FontSize="14" FontWeight="Bold" Foreground="#E4E4E7" Margin="0,0,0,12"/>
-
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                            <StackPanel>
-                                <!-- Grupo de Eixos -->
-                                <Border Background="#27272A" CornerRadius="6" Padding="14" Margin="0,0,0,12">
-                                    <StackPanel>
-                                        <TextBlock Text="CALIBRAÇÃO DOS PEDAIS E VOLANTE" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,10"/>
-
-                                        <Grid Margin="0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="150"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="80"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Inverter Volante:" VerticalAlignment="Center" Foreground="#E4E4E7"/>
-                                            <CheckBox x:Name="ChkInvertSteering" Grid.Column="1" VerticalAlignment="Center"/>
-                                        </Grid>
-
-                                        <Grid Margin="0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="150"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="80"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Inverter Acelerador:" VerticalAlignment="Center" Foreground="#E4E4E7"/>
-                                            <CheckBox x:Name="ChkInvertThrottle" Grid.Column="1" VerticalAlignment="Center"/>
-                                        </Grid>
-
-                                        <Grid Margin="0,4">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="150"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="80"/>
-                                            </Grid.ColumnDefinitions>
-                                            <TextBlock Text="Inverter Freio:" VerticalAlignment="Center" Foreground="#E4E4E7"/>
-                                            <CheckBox x:Name="ChkInvertBrake" Grid.Column="1" VerticalAlignment="Center"/>
-                                        </Grid>
+                            <Border Style="{StaticResource Panel}" Margin="0,0,0,18"><StackPanel>
+<TextBlock Text="Monitor de efeitos" Style="{StaticResource SectionTitle}"/>
+<UniformGrid Columns="3" Margin="0,18,0,12">
+<StackPanel><TextBlock Text="PACOTES" Style="{StaticResource Caption}"/><TextBlock x:Name="TxtFfbPackets" FontSize="24"/></StackPanel>
+<StackPanel><TextBlock Text="EFEITOS ATIVOS" Style="{StaticResource Caption}"/><TextBlock x:Name="TxtFfbEffects" FontSize="24"/></StackPanel>
+<StackPanel><TextBlock Text="FORÇA CONSTANTE" Style="{StaticResource Caption}"/><TextBlock x:Name="TxtFfbClipping" Margin="0,8,0,0"/></StackPanel>
+</UniformGrid><TextBlock x:Name="TxtFfbTypes"/><TextBlock x:Name="TxtFfbLastPacket" Style="{StaticResource BodyMuted}" Margin="0,6,0,0"/>
+<TextBlock Text="Comandos enviados ao volante; não representam torque físico medido." Style="{StaticResource Caption}" Margin="0,12,0,0"/>
+<TextBlock x:Name="TxtFfbError" Style="{StaticResource BodyMuted}" Margin="0,8,0,0"/>
+</StackPanel></Border>
+<Border Style="{StaticResource Panel}" Margin="0,0,0,18">
+                                <StackPanel>
+                                    <TextBlock Text="Força do volante" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Ganho geral"/>
+                                            <TextBlock Text="Limite global da força enviada ao volante." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlMasterGain" Grid.Column="1" Minimum="0" Maximum="1" Value="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.1" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Ganho geral" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtMasterGainVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Intensidade da pista"/>
+                                            <TextBlock Text="Escala dos efeitos de força constante." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlConstantForce" Grid.Column="1" Minimum="0" Maximum="2.5" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True" SmallChange="0.1" LargeChange="0.2" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Intensidade da pista" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtConstantForceVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Panel}" Margin="0,0,0,18">
+                                <StackPanel>
+                                    <TextBlock Text="Comportamento e vibrações" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Amortecimento"/>
+                                            <TextBlock Text="Resistência aos movimentos rápidos." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlDamper" Grid.Column="1" Minimum="0" Maximum="1" Value="0.15" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.1" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Amortecimento" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtDamperVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Centralização"/>
+                                            <TextBlock Text="Intensidade do efeito de mola." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlSpring" Grid.Column="1" Minimum="0" Maximum="1" Value="0.15" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.1" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Centralização" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtSpringVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Troca de marcha"/>
+                                            <TextBlock Text="Intensidade da vibração nas trocas." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlGearShift" Grid.Column="1" Minimum="0" Maximum="1" Value="0.30" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.1" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Troca de marcha" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtGearShiftVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Vibração do motor"/>
+                                            <TextBlock Text="Intensidade do efeito do motor." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlEngineVib" Grid.Column="1" Minimum="0" Maximum="1" Value="0.15" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.1" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Vibração do motor" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtEngineVibVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Panel}" Margin="0,0,0,18">
+                                <StackPanel>
+                                    <TextBlock Text="Ajustes avançados" Style="{StaticResource SectionTitle}" Margin="0,0,0,8"/>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Força mínima"/>
+                                            <TextBlock Text="Compensa a zona sem resposta do volante." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlMinimumForce" Grid.Column="1" Minimum="0" Maximum="0.2" Value="0.0" TickFrequency="0.01" IsSnapToTickEnabled="True" SmallChange="0.01" LargeChange="0.02" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Força mínima" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtMinimumForceVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Limiar do filtro"/>
+                                            <TextBlock Text="Suavização de pequenas variações." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlFilterThreshold" Grid.Column="1" Minimum="0" Maximum="1" Value="0.10" TickFrequency="0.02" IsSnapToTickEnabled="True" SmallChange="0.02" LargeChange="0.04" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Limiar do filtro" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtFilterThresholdVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                    <Grid Margin="0,14,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="260"/>
+                                            <ColumnDefinition Width="58"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Margin="0,0,20,0">
+                                            <TextBlock Text="Coeficiente mínimo"/>
+                                            <TextBlock Text="Resposta mínima dos efeitos." Style="{StaticResource BodyMuted}" Margin="0,4,0,0"/>
+                                        </StackPanel>
+                                        <Slider x:Name="SlMinCoeff" Grid.Column="1" Minimum="0" Maximum="1" Value="1.0" TickFrequency="0.05" IsSnapToTickEnabled="True" SmallChange="0.05" LargeChange="0.1" ValueChanged="FfbSlider_ValueChanged" AutomationProperties.Name="Coeficiente mínimo" VerticalAlignment="Center"/>
+                                        <TextBlock x:Name="TxtMinCoeffVal" Grid.Column="2" Text="—" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Panel}">
+                                <StackPanel>
+                                    <CheckBox x:Name="ChkInvertFFB" Content="Inverter o sentido do retorno de força" Click="FfbSlider_ValueChanged"/>
+                                    <TextBlock Text="Testes do volante" Style="{StaticResource SectionTitle}" Margin="0,22,0,6"/>
+                                    <TextBlock Text="Disponíveis com uma sessão FFB ativa. O volante pode se mover: mantenha a área livre." Style="{StaticResource BodyMuted}"/>
+                                    <StackPanel Orientation="Horizontal" Margin="0,16,0,0" IsEnabled="{Binding CanTest}">
+                                        <Button Content="Testar direção" Click="BtnTestMotorFfb_Click"/>
+                                        <Button Content="Testar troca" Click="BtnTestShiftFfb_Click" Margin="10,0"/>
+                                        <Button Content="Testar motor" Click="BtnTestEngineFfb_Click"/>
                                     </StackPanel>
-                                </Border>
-
-                                <!-- Informações do Perfil Atual -->
-                                <Border Background="#27272A" CornerRadius="6" Padding="14">
-                                    <StackPanel>
-                                        <TextBlock Text="PERFIL ATUAL DETECTADO" FontSize="12" FontWeight="Bold" Foreground="#22C55E" Margin="0,0,0,6"/>
-                                        <TextBlock Text="• Volante: ODrive-Wheel HID (Eixos 0: Steering, 3: Clutch, 4: Brake, 5: Throttle)" FontSize="12" Foreground="#A1A1AA"/>
-                                        <TextBlock Text="• Câmbio: Shifter Game Controller (Botões 0, 1, 2 mapeados para Marchas)" FontSize="12" Foreground="#A1A1AA" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Border>
-                            </StackPanel>
-                        </ScrollViewer>
-
-                        <!-- Botão Salvar -->
-                        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,12,0,0">
-                            <Button x:Name="BtnReloadConfig" Click="BtnReloadConfig_Click" Content="Recarregar do Disco" Width="160" Background="#3F3F46" Margin="0,0,10,0"/>
-                            <Button x:Name="BtnSaveConfig" Click="BtnSaveConfig_Click" Content="Salvar Configuração" Width="160" Background="#0284C7"/>
+                                </StackPanel>
+                            </Border>
                         </StackPanel>
-                    </Grid>
-                </Border>
-            </TabItem>
-
-            <!-- TAB 3: FORCE FEEDBACK -->
-            <TabItem Header="⚡ Force Feedback (FFB)">
-                <Border Background="#18181B" CornerRadius="0,8,8,8" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="Ajustes de Force Feedback para Motores Direct Drive" FontSize="14" FontWeight="Bold" Foreground="#E4E4E7" Margin="0,0,0,16"/>
-
-                        <Border Background="#27272A" CornerRadius="6" Padding="14" Margin="0,0,0,12">
-                            <StackPanel>
-                                <TextBlock Text="FORÇA DE CREMALHEIRA (RACK / CONSTANT FORCE)" FontSize="12" FontWeight="Bold" Foreground="#38BDF8" Margin="0,0,0,6"/>
-                                <TextBlock Text="Multiplicador geral de força enviado do jogo diretamente para o ODrive:" FontSize="12" Foreground="#A1A1AA" Margin="0,0,0,6"/>
-                                <Slider x:Name="SlConstantForce" Minimum="0.1" Maximum="2.0" Value="1.0" TickFrequency="0.1" IsSnapToTickEnabled="True"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Background="#27272A" CornerRadius="6" Padding="14" Margin="0,0,0,12">
-                            <StackPanel>
-                                <TextBlock Text="AMORTECIMENTO DINÂMICO (DAMPER)" FontSize="12" FontWeight="Bold" Foreground="#22C55E" Margin="0,0,0,6"/>
-                                <TextBlock Text="Simula o peso e inércia do pneu em contato com o asfalto:" FontSize="12" Foreground="#A1A1AA" Margin="0,0,0,6"/>
-                                <Slider x:Name="SlDamper" Minimum="0.0" Maximum="1.0" Value="0.15" TickFrequency="0.05" IsSnapToTickEnabled="True"/>
-                            </StackPanel>
-                        </Border>
-
-                        <Border Background="#27272A" CornerRadius="6" Padding="14">
-                            <StackPanel>
-                                <TextBlock Text="MOLA DE CENTRALIZAÇÃO (SPRING)" FontSize="12" FontWeight="Bold" Foreground="#EAB308" Margin="0,0,0,6"/>
-                                <TextBlock Text="Força de retorno ao centro quando parado ou em baixa velocidade:" FontSize="12" Foreground="#A1A1AA" Margin="0,0,0,6"/>
-                                <Slider x:Name="SlSpring" Minimum="0.0" Maximum="1.0" Value="0.15" TickFrequency="0.05" IsSnapToTickEnabled="True"/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
-                </Border>
-            </TabItem>
-
-            <!-- TAB 4: COMPATIBILIDADE FORZA -->
-            <TabItem Header="🏎️ Suporte à Franquia Forza">
-                <Border Background="#18181B" CornerRadius="0,8,8,8" Padding="20">
-                    <StackPanel>
-                        <TextBlock Text="Compatibilidade com Jogos da Franquia Forza" FontSize="14" FontWeight="Bold" Foreground="#E4E4E7" Margin="0,0,0,12"/>
-                        <TextBlock Text="O ForzaNextWheel utiliza o protocolo canônico VID: 1234 e PID: BEAD para ser reconhecido instantaneamente como volante oficial em todos os jogos abaixo:" FontSize="12" Foreground="#A1A1AA" Margin="0,0,0,16"/>
-
-                        <Border Background="#27272A" CornerRadius="6" Padding="14" Margin="0,0,0,10">
-                            <TextBlock Text="✔ Forza Horizon 5 (Steam &amp; Microsoft Store / Game Pass)&#x0a;✔ Forza Horizon 4 (Steam &amp; Microsoft Store)&#x0a;✔ Forza Horizon 3&#x0a;✔ Forza Motorsport (2023)&#x0a;✔ Forza Motorsport 7" FontSize="13" LineHeight="24" Foreground="#E4E4E7"/>
-                        </Border>
-
-                        <TextBlock Text="Dica de Execução:" FontWeight="Bold" FontSize="12" Foreground="#F59E0B" Margin="0,10,0,4"/>
-                        <TextBlock Text="1. Conecte o ODrive e o Shifter na porta USB.&#x0a;2. Clique em 'INICIAR FEEDER' no topo desta janela.&#x0a;3. Abra o seu jogo Forza e vá em Configurações > Controles > Volante." FontSize="12" Foreground="#A1A1AA" LineHeight="20"/>
-
-                        <Button x:Name="BtnRegisterGameInput" Click="BtnRegisterGameInput_Click" Content="🔧 Aplicar Perfil do Volante no Windows (1-Clique)" Background="#0284C7" Height="38" FontWeight="Bold" Margin="0,16,0,0"/>
-                    </StackPanel>
-                </Border>
-            </TabItem>
-        </TabControl>
-
-        <!-- Status Footer -->
-        <Border Grid.Row="2" Background="#18181B" CornerRadius="6" Padding="10" Margin="0,12,0,0">
-            <TextBlock x:Name="TxtConsole" Text="ForzaNextWheel pronto para iniciar." FontSize="12" Foreground="#71717A"/>
-        </Border>
+                    </ScrollViewer>
+                </TabItem>
+                <TabItem>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel Margin="0,0,12,0">
+                            <Border Style="{StaticResource Panel}" Margin="0,0,0,18"><StackPanel>
+<TextBlock Text="Conexão USB" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="TxtUsbStatus" Text="Consultando conexão…" TextWrapping="Wrap" Margin="0,12,0,14"/>
+<Button Content="Atualizar conexão" Click="RefreshUsb_Click" HorizontalAlignment="Left"/>
+</StackPanel></Border>
+<Border Style="{StaticResource Panel}" Margin="0,0,0,18"><StackPanel>
+<TextBlock Text="Desempenho" Style="{StaticResource SectionTitle}"/><TextBlock x:Name="TxtTimerMode" Style="{StaticResource BodyMuted}" Margin="0,10,0,6"/>
+<TextBlock x:Name="TxtBenchmark" Text="Meça o agendador sem acessar os dispositivos." TextWrapping="Wrap" Margin="0,0,0,14"/>
+<Button x:Name="BtnBenchmark" Content="Medir agendador · 3 s" Click="Benchmark_Click" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Left"/>
+</StackPanel></Border>
+<Border Style="{StaticResource Panel}" Margin="0,0,0,18"><StackPanel>
+<TextBlock Text="Recuperação e atualização" Style="{StaticResource SectionTitle}"/>
+<TextBlock Text="Recupere a última cópia salva do perfil ativo." Style="{StaticResource BodyMuted}" Margin="0,10,0,14"/>
+<Button Content="Recuperar backup do perfil" Click="RestoreProfile_Click" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Left"/>
+<Button Content="Instalar atualização de arquivo…" Click="InstallUpdate_Click" IsEnabled="{Binding CanEdit}" HorizontalAlignment="Left" Margin="0,10,0,0"/>
+</StackPanel></Border>
+<Border Style="{StaticResource Panel}" Margin="0,0,0,18">
+                                <StackPanel>
+                                    <TextBlock Text="Volante virtual" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="O vJoy 1 é preparado ao abrir o app e desativado ao fechar." Style="{StaticResource BodyMuted}" Margin="0,8,0,20"/>
+                                    <Border Background="{StaticResource RaisedBrush}" CornerRadius="8" Padding="18">
+                                        <TextBlock x:Name="TxtVjoySetup" Text="Aguardando verificação." TextWrapping="Wrap" LineHeight="22"/>
+                                    </Border>
+                                    <StackPanel Orientation="Horizontal" Margin="0,18,0,0">
+                                        <Button x:Name="BtnPrepareVjoy" Content="Preparar volante virtual" Click="BtnPrepareVjoy_Click"/>
+                                        <Button x:Name="BtnRefreshVjoy" Content="Verificar novamente" Click="BtnRefreshVjoy_Click" Margin="10,0,0,0"/>
+                                    </StackPanel>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource Panel}">
+                                <StackPanel>
+                                    <TextBlock Text="Da configuração à pista" Style="{StaticResource SectionTitle}"/>
+                                    <TextBlock Text="01   Prepare o volante virtual" FontSize="15" Margin="0,24,0,6"/>
+                                    <TextBlock Text="A instalação e configuração são automáticas. O Windows pode solicitar autorização ou reinicialização." Style="{StaticResource BodyMuted}"/>
+                                    <TextBlock Text="02   Mapeie seus controles" FontSize="15" Margin="0,24,0,6"/>
+                                    <TextBlock Text="Associe volante, pedais, câmbio e botões na tela Controles." Style="{StaticResource BodyMuted}"/>
+                                    <TextBlock Text="03   Inicie uma sessão" FontSize="15" Margin="0,24,0,6"/>
+                                    <TextBlock Text="Confira as entradas no monitor. Em modo somente entradas, o retorno de força estará indisponível." Style="{StaticResource BodyMuted}"/>
+                                    <TextBlock Text="04   Configure o jogo" FontSize="15" Margin="0,24,0,6"/>
+                                    <TextBlock Text="Selecione o volante virtual no Forza e associe os comandos no jogo." Style="{StaticResource BodyMuted}"/>
+                                    <Button Content="Abrir pasta de diagnóstico  ↗" Click="OpenLogs_Click" HorizontalAlignment="Left" Margin="0,24,0,0"/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+            </TabControl>
+            <Border Grid.Row="2" BorderBrush="{StaticResource StrokeBrush}" BorderThickness="0,1,0,0" Padding="0,14,0,0" Margin="0,18,0,0">
+                <TextBlock x:Name="TxtConsole" Text="Aguardando preparação do setup." FontSize="11" Foreground="{StaticResource SecondaryBrush}" TextTrimming="CharacterEllipsis" ToolTip="{Binding Text,RelativeSource={RelativeSource Self}}"/>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

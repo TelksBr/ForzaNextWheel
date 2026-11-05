@@ -1,0 +1,16 @@
+<Window x:Class="ForzaNext.UI.CalibrationWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml" Title="Calibrar controle" Width="660" Height="530" MinWidth="600" MinHeight="500" WindowStartupLocation="CenterOwner" FontFamily="Segoe UI" Background="{DynamicResource CanvasBrush}" Foreground="{DynamicResource TextBrush}">
+    <Window.Resources><ResourceDictionary><ResourceDictionary.MergedDictionaries><ResourceDictionary Source="Themes/DesignSystem.xaml"/></ResourceDictionary.MergedDictionaries></ResourceDictionary></Window.Resources>
+    <Grid Margin="28"><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+        <StackPanel><TextBlock x:Name="Heading" Text="Calibrar eixo" FontSize="26" FontWeight="SemiBold"/><TextBlock x:Name="StepLabel" Text="Etapa 1 de 3 · Limites" Style="{StaticResource Caption}" Foreground="{StaticResource AccentBrush}" Margin="0,10,0,18"/></StackPanel>
+        <StackPanel Grid.Row="1"><Border Style="{StaticResource Panel}"><StackPanel>
+            <TextBlock x:Name="Instruction" Text="Conectando ao dispositivo…" FontSize="17" TextWrapping="Wrap"/>
+            <ProgressBar x:Name="Position" Maximum="65535" Height="9" Margin="0,24,0,14"/>
+            <TextBlock x:Name="Reading" Text="Aguardando leitura" Style="{StaticResource BodyMuted}"/>
+            <TextBlock x:Name="Limits" Text="Mínimo: —     Centro: —     Máximo: —" Style="{StaticResource Caption}" Margin="0,12,0,0"/>
+        </StackPanel></Border>
+        <TextBlock Text="Zona morta" Margin="0,20,0,0"/><DockPanel><TextBlock x:Name="DeadzoneValue" DockPanel.Dock="Right" Text="0%" Width="50" TextAlignment="Right" VerticalAlignment="Center"/><Slider x:Name="Deadzone" Minimum="0" Maximum="0.2" TickFrequency="0.01" IsSnapToTickEnabled="True" ValueChanged="Deadzone_Changed" AutomationProperties.Name="Zona morta"/></DockPanel>
+        <TextBlock x:Name="Status" Text="A calibração lê entradas; o retorno de força fica desativado." Style="{StaticResource BodyMuted}" Margin="0,12,0,0"/>
+        </StackPanel>
+        <StackPanel Grid.Row="2" Orientation="Horizontal" HorizontalAlignment="Right"><Button x:Name="Cancel" Content="Cancelar" Click="Cancel_Click" Margin="0,0,10,0"/><Button x:Name="Next" Content="Avançar" Click="Next_Click" Style="{StaticResource PrimaryButton}" IsEnabled="False" MinWidth="130"/></StackPanel>
+    </Grid>
+</Window>
