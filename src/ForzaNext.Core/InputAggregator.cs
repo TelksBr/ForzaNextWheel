@@ -61,27 +61,27 @@ public class InputAggregator
                     bool isSteering = axis.Id.Equals("Steering", StringComparison.OrdinalIgnoreCase);
                     int processedValue = ProcessAxisValue(rawValue, axis.Inverted == 1, axis.Deadzone, isSteering, axis.Calibration);
 
-                    switch (axis.Id)
+                    switch (axis.Id.ToLowerInvariant())
                     {
-                        case "Steering":
+                        case "steering":
                             outPosition.AxisX = processedValue;
                             break;
-                        case "Throttle":
+                        case "throttle":
                             outPosition.AxisZ = processedValue;
                             break;
-                        case "Brake":
+                        case "brake":
                             outPosition.AxisXRot = processedValue;
                             break;
-                        case "Clutch":
+                        case "clutch":
                             outPosition.AxisYRot = processedValue;
                             break;
-                        case "Handbrake":
+                        case "handbrake":
                             outPosition.AxisZRot = processedValue;
                             break;
-                        case "Slider0":
+                        case "slider0":
                             outPosition.Slider = processedValue;
                             break;
-                        case "Slider1":
+                        case "slider1":
                             outPosition.Dial = processedValue;
                             break;
                     }

@@ -88,6 +88,37 @@ public sealed class FeatureTests : IDisposable
         Assert.Throws<InvalidDataException>(() => new AxisCalibration { Center = 0 }.Validate(true));
         Assert.Throws<InvalidDataException>(() => new AxisCalibration { Minimum = int.MaxValue - 5000, Maximum = int.MinValue }.Validate(false));
     }
+
+    [Fact]
+    public void AxisMappingIsCaseInsensitiveInValidationAndAggregation()
+    {
+        var guid = Guid.NewGuid();
+        var profile = new ControllerProfile
+        {
+            InstanceGuid = guid,
+            InstanceName = "Wheel",
+            ProductName = "Wheel",
+            Axes = new()
+            {
+                new() { Id = "steering", AxisIndex = 0 },
+                new() { Id = "THROTTLE", AxisIndex = 1 }
+            }
+        };
+
+        // Should not throw InvalidDataException on validation
+        ProfileManager.Validate(new() { profile });
+
+        // Input aggregator should map case-insensitively
+        var aggregator = new InputAggregator(new() { profile });
+        var buffer = aggregator.GetStateBuffer(guid);
+        buffer.IsValid = true;
+        buffer.Axes[0] = 65535; // Full steering lock right -> 32768
+        buffer.Axes[1] = 65535; // 100% Throttle -> 32768
+
+        var pos = aggregator.Aggregate();
+        Assert.Equal(32768, pos.AxisX);
+        Assert.Equal(32768, pos.AxisZ);
+    }
     [Fact] public void TimingStatisticsIncludeTailLatency()
     {
         var result = LoopBenchmark.Summarize("test", Enumerable.Repeat(1d, 99).Append(20d).ToArray());
@@ -157,6 +188,30 @@ public sealed class FeatureTests : IDisposable
     public async Task UpdateRefusesSameOrOlderVersion(string version)
     {
         await Assert.ThrowsAsync<InvalidDataException>(() => ReleasePackage.PrepareAsync(Manifest(version: version), new(2, 1, 0), _root));
+    }
+
+    [Fact]
+    public async Task GitHubUpdateServiceDetectsWhenNewerVersionAvailable()
+    {
+        string manifestPath = Manifest(package: "ForzaNextWheel-2.2.0-Setup.msi", version: "2.2.0");
+        string fileUrl = new Uri(manifestPath).AbsoluteUri;
+
+        var check = await GitHubUpdateService.CheckForUpdateAsync(new Version(2, 1, 3), fileUrl);
+        Assert.True(check.UpdateAvailable);
+        Assert.NotNull(check.Manifest);
+        Assert.Equal("2.2.0", check.Manifest.Version);
+        Assert.EndsWith("ForzaNextWheel-2.2.0-Setup.msi", check.DownloadUrl);
+    }
+
+    [Fact]
+    public async Task GitHubUpdateServiceReportsNoUpdateWhenAlreadyUpToDate()
+    {
+        string manifestPath = Manifest(package: "ForzaNextWheel-2.1.3-Setup.msi", version: "2.1.3");
+        string fileUrl = new Uri(manifestPath).AbsoluteUri;
+
+        var check = await GitHubUpdateService.CheckForUpdateAsync(new Version(2, 1, 3), fileUrl);
+        Assert.False(check.UpdateAvailable);
+        Assert.Null(check.DownloadUrl);
     }
     public void Dispose() { if (Directory.Exists(_root)) Directory.Delete(_root, true); }
 }

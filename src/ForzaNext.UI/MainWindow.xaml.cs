@@ -75,6 +75,18 @@ public partial class MainWindow : Window
         _uiTimer.Tick += UiTimer_Tick;
         _uiTimer.Start();
         LogTrace("[INIT] MainWindow_Loaded complete");
+
+        // Background check for updates via GitHub Releases
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await Task.Delay(3500);
+                if (_closing) return;
+                await Dispatcher.InvokeAsync(() => CheckForUpdatesAsync(userInitiated: false));
+            }
+            catch { }
+        });
     }
 
     private void LoadConfiguration()

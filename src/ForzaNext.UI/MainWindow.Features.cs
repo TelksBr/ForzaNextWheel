@@ -15,6 +15,116 @@ public partial class MainWindow
     private GameProfileStore? _profileStore;
     private bool _loadingProfiles, _calibrating;
     private string? _pendingUpdate;
+    private UpdateCheckResult? _latestUpdateCheck;
+
+    public async Task CheckForUpdatesAsync(bool userInitiated = true)
+    {
+        if (BtnCheckUpdates != null) BtnCheckUpdates.IsEnabled = false;
+        if (userInitiated) TxtUpdateStatus.Text = "Consultando atualizações no GitHub Releases...";
+
+        try
+        {
+            var current = typeof(MainWindow).Assembly.GetName().Version ?? new Version(2, 1, 0);
+            _latestUpdateCheck = await GitHubUpdateService.CheckForUpdateAsync(current);
+
+            if (_latestUpdateCheck.UpdateAvailable && _latestUpdateCheck.Manifest != null)
+            {
+                TxtUpdateStatus.Text = $"Nova versão v{_latestUpdateCheck.Manifest.Version} disponível! ({(_latestUpdateCheck.Manifest.Size / 1024.0 / 1024.0):F1} MB)";
+                if (BtnApplyUpdate != null) BtnApplyUpdate.Visibility = Visibility.Visible;
+                TxtConsole.Text = $"Atualização disponível: v{_latestUpdateCheck.Manifest.Version}. Acesse Ferramentas para atualizar.";
+            }
+            else if (_latestUpdateCheck.Error != null)
+            {
+                if (userInitiated) TxtUpdateStatus.Text = "Não foi possível verificar: " + _latestUpdateCheck.Error;
+            }
+            else
+            {
+                if (userInitiated) TxtUpdateStatus.Text = $"O ForzaNext Wheel já está atualizado (v{current.ToString(3)}).";
+                if (BtnApplyUpdate != null) BtnApplyUpdate.Visibility = Visibility.Collapsed;
+            }
+        }
+        catch (Exception ex)
+        {
+            if (userInitiated) TxtUpdateStatus.Text = "Falha ao consultar atualizações: " + ex.Message;
+        }
+        finally
+        {
+            if (BtnCheckUpdates != null) BtnCheckUpdates.IsEnabled = true;
+        }
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        await CheckForUpdatesAsync(userInitiated: true);
+    }
+
+    private async void ApplyUpdate_Click(object sender, RoutedEventArgs e)
+    {
+        if (_latestUpdateCheck == null || !_latestUpdateCheck.UpdateAvailable || _latestUpdateCheck.Manifest == null)
+            return;
+
+        if (!CanEdit() || !ConfirmProfileChanges()) return;
+
+        var manifest = _latestUpdateCheck.Manifest;
+        if (MessageBox.Show(this,
+            $"Deseja baixar e instalar o ForzaNext Wheel v{manifest.Version}?\n\nO aplicativo fará o download oficial diretamente do GitHub Releases e será fechado para executar a instalação.\nTodos os seus perfis e configurações serão preservados.",
+            "Confirmar Atualização",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question) != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        _calibrating = true;
+        UpdatePresentation();
+        if (BtnApplyUpdate != null) BtnApplyUpdate.IsEnabled = false;
+        if (BtnCheckUpdates != null) BtnCheckUpdates.IsEnabled = false;
+        if (PbUpdateProgress != null)
+        {
+            PbUpdateProgress.Visibility = Visibility.Visible;
+            PbUpdateProgress.Value = 0;
+        }
+
+        try
+        {
+            TxtUpdateStatus.Text = $"Baixando ForzaNext Wheel v{manifest.Version}...";
+            var current = typeof(MainWindow).Assembly.GetName().Version ?? new Version(2, 1, 0);
+
+            var progress = new Progress<double>(percent =>
+            {
+                Dispatcher.Invoke(() =>
+                {
+                    if (PbUpdateProgress != null) PbUpdateProgress.Value = percent * 100;
+                    TxtUpdateStatus.Text = $"Baixando ForzaNext Wheel v{manifest.Version}... {(int)(percent * 100)}%";
+                });
+            });
+
+            var prepared = await GitHubUpdateService.DownloadAndPrepareUpdateAsync(
+                _latestUpdateCheck,
+                current,
+                Path.Combine(AppPaths.DataDirectory, "Updates"),
+                progress);
+
+            TxtUpdateStatus.Text = "Download concluído e integridade SHA-256 verificada com sucesso!";
+            _pendingUpdate = prepared.Installer;
+            Close();
+        }
+        catch (Exception ex)
+        {
+            TxtUpdateStatus.Text = "Falha no download da atualização: " + ex.Message;
+            TxtConsole.Text = "Erro na atualização: " + ex.Message;
+            LogTrace(ex.ToString());
+            if (BtnApplyUpdate != null) BtnApplyUpdate.IsEnabled = true;
+            if (BtnCheckUpdates != null) BtnCheckUpdates.IsEnabled = true;
+            if (PbUpdateProgress != null) PbUpdateProgress.Visibility = Visibility.Collapsed;
+        }
+        finally
+        {
+            _calibrating = false;
+            UpdatePresentation();
+        }
+    }
+
     private async void InstallUpdate_Click(object sender, RoutedEventArgs e)
     {
         if (_preview) { TxtConsole.Text = "Prévia: nenhum instalador foi aberto."; return; }

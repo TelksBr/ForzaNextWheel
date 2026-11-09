@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$OutputPath)
 $ErrorActionPreference = 'Stop'
 $root = Split-Path $PSScriptRoot -Parent
@@ -22,12 +22,15 @@ if ($LASTEXITCODE -ne 0) { throw 'dotnet tool restore falhou.' }
 & dotnet wix extension add WixToolset.Util.wixext/5.0.2
 
 Write-Output "==> Publicando ForzaNext.UI (win-x64 self-contained)..."
-& dotnet publish (Join-Path $root 'src\ForzaNext.UI') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o $app
+& dotnet publish (Join-Path $root 'src\ForzaNext.UI') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:DebugType=none -p:DebugSymbols=false -o $app
 if ($LASTEXITCODE -ne 0) { throw 'Publish do ForzaNext.UI falhou.' }
 
 Write-Output "==> Publicando ForzaNext.Cli..."
-& dotnet publish (Join-Path $root 'src\ForzaNext.Cli') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -o $app
+& dotnet publish (Join-Path $root 'src\ForzaNext.Cli') -c Release -r win-x64 --self-contained true -p:PublishSingleFile=false -p:DebugType=none -p:DebugSymbols=false -o $app
 if ($LASTEXITCODE -ne 0) { throw 'Publish do ForzaNext.Cli falhou.' }
+
+# Remove all debug symbols (.pdb) from release distribution
+Get-ChildItem -Path $app -Filter "*.pdb" -Recurse | Remove-Item -Force
 
 Copy-Item -LiteralPath (Join-Path $root 'README.md') -Destination $app -Force
 if (-not (Test-Path -LiteralPath (Join-Path $app 'configuration.json'))) {

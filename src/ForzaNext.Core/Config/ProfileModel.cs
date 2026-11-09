@@ -190,7 +190,7 @@ public static class ProfileManager
         var devices = new HashSet<Guid>();
         var axes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         var buttons = new HashSet<int>();
-        var axisNames = new[] { "Steering", "Throttle", "Brake", "Clutch", "Handbrake", "Slider0", "Slider1" };
+        var axisNames = new HashSet<string>(new[] { "Steering", "Throttle", "Brake", "Clutch", "Handbrake", "Slider0", "Slider1" }, StringComparer.OrdinalIgnoreCase);
         foreach (var p in profiles)
         {
             if (p == null || p.InstanceGuid == Guid.Empty || !devices.Add(p.InstanceGuid))
@@ -202,7 +202,7 @@ public static class ProfileManager
                 if (axis == null || !axisNames.Contains(axis.Id) || !axes.Add(axis.Id) || axis.AxisIndex is < 0 or > 7 || axis.Inverted is < 0 or > 1)
                     throw new InvalidDataException($"Mapeamento de eixo inválido/duplicado em {p.InstanceName}.");
                 Range(axis.Deadzone, 0, 0.99, "Deadzone");
-                axis.Calibration?.Validate(axis.Id == "Steering");
+                axis.Calibration?.Validate(axis.Id.Equals("Steering", StringComparison.OrdinalIgnoreCase));
             }
             foreach (var b in p.Buttons ?? new())
                 if (b == null || b.Id is < 0 or > 127 || b.Index is < 0 or > 127 || !buttons.Add(b.Id))

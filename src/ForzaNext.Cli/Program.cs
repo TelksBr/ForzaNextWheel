@@ -189,6 +189,7 @@ internal static class Program
                 foreach (var p in profiles) Console.WriteLine($" - {p.InstanceName} (FFB: {p.FFBParameters != null})");
 
                 FfbDebugLogger.EnableConsoleOutput = true;
+                FfbDebugLogger.IsEnabled = true;
                 Console.WriteLine($"Gravando trace detalhado em: {FfbDebugLogger.LogPath}");
 
                 var ffbTarget = profiles.FirstOrDefault(p => p.FFBParameters != null);

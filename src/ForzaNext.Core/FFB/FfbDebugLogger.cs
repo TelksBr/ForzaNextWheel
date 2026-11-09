@@ -8,11 +8,13 @@ namespace ForzaNext.Core.FFB;
 public static class FfbDebugLogger
 {
     private static readonly BlockingCollection<string> Queue = new(new ConcurrentQueue<string>());
-    private static readonly Thread WriterThread;
+    private static Thread? _writerThread;
+    private static readonly object ThreadLock = new();
     private static string? _logPath;
     private static volatile bool _disposed;
 
-    public static bool EnableConsoleOutput { get; set; }
+    public static bool IsEnabled { get; set; } = false;
+    public static bool EnableConsoleOutput { get; set; } = false;
 
     public static string LogPath
     {
@@ -30,18 +32,28 @@ public static class FfbDebugLogger
 
     static FfbDebugLogger()
     {
-        WriterThread = new Thread(ProcessQueue)
-        {
-            IsBackground = true,
-            Name = "FfbDebugLoggerWorker",
-            Priority = ThreadPriority.BelowNormal
-        };
-        WriterThread.Start();
         AppDomain.CurrentDomain.ProcessExit += (_, _) => FlushAndClose();
+    }
+
+    private static void EnsureWriterStarted()
+    {
+        if (_writerThread != null || _disposed) return;
+        lock (ThreadLock)
+        {
+            if (_writerThread != null || _disposed) return;
+            _writerThread = new Thread(ProcessQueue)
+            {
+                IsBackground = true,
+                Name = "FfbDebugLoggerWorker",
+                Priority = ThreadPriority.BelowNormal
+            };
+            _writerThread.Start();
+        }
     }
 
     public static void Log(string category, string message)
     {
+        if (!IsEnabled && !EnableConsoleOutput) return;
         if (_disposed) return;
         string timestamp = DateTime.Now.ToString("HH:mm:ss.fff");
         string line = $"[{timestamp}] [{category}] {message}";
@@ -57,13 +69,17 @@ public static class FfbDebugLogger
             }
         }
 
-        try
+        if (IsEnabled)
         {
-            Queue.TryAdd(line);
-        }
-        catch
-        {
-            // Lock-free add, never block caller
+            EnsureWriterStarted();
+            try
+            {
+                Queue.TryAdd(line);
+            }
+            catch
+            {
+                // Lock-free add, never block caller
+            }
         }
     }
 
@@ -111,6 +127,6 @@ public static class FfbDebugLogger
         if (_disposed) return;
         _disposed = true;
         Queue.CompleteAdding();
-        try { WriterThread.Join(500); } catch { }
+        try { _writerThread?.Join(500); } catch { }
     }
 }

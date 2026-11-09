@@ -6,6 +6,7 @@
     <Content Include="..\..\dependencies\vjoy\LICENSE.txt" Link="licenses\vJoy-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\configuration.json" Link="configuration.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="..\ForzaNext.Core\ForzaNext.Core.csproj" />
+    <Resource Include="app.ico" />
   </ItemGroup>
 
   <PropertyGroup>

@@ -135,7 +135,7 @@ public sealed class WheelSession
         }
         finally
         {
-            if (Devices.HidHideService.IsInstalled)
+            if (failure != null && Devices.HidHideService.IsInstalled)
             {
                 try { Devices.HidHideService.UncloakSync(_profiles); } catch { }
             }

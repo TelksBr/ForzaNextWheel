@@ -6,7 +6,7 @@
            UpgradeCode="6C03E3BF-5C03-46DB-A24D-A53DB2E284F2"
            Scope="perMachine">
 
-    <MajorUpgrade DowngradeErrorMessage="Uma versão mais recente do ForzaNext Wheel já está instalada." />
+    <MajorUpgrade Schedule="afterInstallInitialize" DowngradeErrorMessage="Uma versão mais recente do ForzaNext Wheel já está instalada." />
     <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
 
     <StandardDirectory Id="ProgramFiles64Folder">
