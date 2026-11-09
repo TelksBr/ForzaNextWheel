@@ -68,6 +68,8 @@ public sealed class FfbProtocol
 {
     private readonly IFfbEffectSink _sink;
     private readonly Dictionary<byte, FfbEffectState> _effects = new();
+    private readonly HashSet<byte> _stoppedBlocks = new();
+    private bool _deviceReset;
     private bool _enabled = true;
     private bool _paused;
     private byte _gain = 255;
@@ -109,11 +111,12 @@ public sealed class FfbProtocol
                     if (control == FFB_CTRL.CTRL_DISACT) _enabled = false;
                     if (control == FFB_CTRL.CTRL_DEVRST)
                     {
+                        _deviceReset = true;
                         foreach (var id in _effects.Keys) _sink.Free(id);
                         _effects.Clear(); _gain = 255; _enabled = true; _paused = false;
                     }
                     break;
-                case FFB_CTRL.CTRL_ENACT: _enabled = true; break;
+                case FFB_CTRL.CTRL_ENACT: _enabled = true; _deviceReset = false; break;
                 case FFB_CTRL.CTRL_DEVPAUSE: _paused = true; break;
                 case FFB_CTRL.CTRL_DEVCONT: _paused = false; break;
             }
@@ -129,7 +132,12 @@ public sealed class FfbProtocol
         }
         if (packet.Type == FFBPType.PT_BLKFRREP && packet.Value is int freed)
         {
-            if (freed is > 0 and <= 255) { _sink.Free((byte)freed); _effects.Remove((byte)freed); }
+            if (freed is > 0 and <= 255)
+            {
+                _sink.Free((byte)freed);
+                _effects.Remove((byte)freed);
+                _stoppedBlocks.Remove((byte)freed);
+            }
             return;
         }
         byte index = packet.Value switch
@@ -145,6 +153,8 @@ public sealed class FfbProtocol
         {
             case FfbEffReport r:
                 FfbDebugLogger.Log("PROTO-REPORT", $"Block={index} Type={r.EffectType} Dur={r.Duration} Gain={r.Gain} Dir={r.Direction} Polar={r.Polar}");
+                _deviceReset = false;
+                _stoppedBlocks.Remove(index);
                 if (state.Report is { } old && old.EffectType != r.EffectType)
                 {
                     _sink.Free(index);
@@ -153,15 +163,43 @@ public sealed class FfbProtocol
                 state.Report = r; break;
             case FfbEffConstant c:
                 FfbDebugLogger.Log("PROTO-CONST", $"Block={index} Mag={(short)c.Magnitude} (Raw={c.Magnitude})");
+                if (state.Report == null && !_stoppedBlocks.Contains(index) && !_deviceReset)
+                {
+                    state.Report = new FfbEffReport { EffectBlockIndex = index, EffectType = FFBEType.ET_CONST, Duration = ushort.MaxValue, Gain = 255, Polar = 1, Direction = 64 };
+                    state.Running = true;
+                    state.StartPending = true;
+                    state.Iterations = -1;
+                }
                 state.Constant = c; break;
             case FfbEffPeriod p:
                 FfbDebugLogger.Log("PROTO-PERIOD", $"Block={index} Mag={(ushort)p.Magnitude} Period={p.Period} Phase={p.Phase} Offset={(short)p.Offset}");
+                if (state.Report == null && !_stoppedBlocks.Contains(index) && !_deviceReset)
+                {
+                    state.Report = new FfbEffReport { EffectBlockIndex = index, EffectType = FFBEType.ET_SINE, Duration = ushort.MaxValue, Gain = 255, Polar = 1, Direction = 64 };
+                    state.Running = true;
+                    state.StartPending = true;
+                    state.Iterations = -1;
+                }
                 state.Periodic = p; break;
             case FfbEffCond c when c.isY == 0:
                 FfbDebugLogger.Log("PROTO-COND", $"Block={index} Center={(short)c.CenterPointOffset} Dead={(ushort)c.DeadBand} PosCoeff={(short)c.PosCoeff} NegCoeff={(short)c.NegCoeff}");
+                if (state.Report == null && !_stoppedBlocks.Contains(index) && !_deviceReset)
+                {
+                    state.Report = new FfbEffReport { EffectBlockIndex = index, EffectType = FFBEType.ET_DMPR, Duration = ushort.MaxValue, Gain = 255, Polar = 1, Direction = 64 };
+                    state.Running = true;
+                    state.StartPending = true;
+                    state.Iterations = -1;
+                }
                 state.Condition = c; break;
             case FfbEffRamp r:
                 FfbDebugLogger.Log("PROTO-RAMP", $"Block={index} Start={(short)r.Start} End={(short)r.End}");
+                if (state.Report == null && !_stoppedBlocks.Contains(index) && !_deviceReset)
+                {
+                    state.Report = new FfbEffReport { EffectBlockIndex = index, EffectType = FFBEType.ET_RAMP, Duration = ushort.MaxValue, Gain = 255, Polar = 1, Direction = 64 };
+                    state.Running = true;
+                    state.StartPending = true;
+                    state.Iterations = -1;
+                }
                 state.Ramp = r; break;
             case FfbEffEnvelope e:
                 state.Envelope = e; break;
@@ -169,10 +207,13 @@ public sealed class FfbProtocol
                 FfbDebugLogger.Log("PROTO-OP", $"Block={index} Op={op.EffectOp} Loops={op.LoopCount}");
                 if (op.EffectOp == FFBOP.EFF_STOP)
                 {
+                    _stoppedBlocks.Add(index);
                     state.Running = false; state.StartPending = false; _sink.Stop(index); return;
                 }
                 if (!_enabled || _paused || op.EffectOp is not (FFBOP.EFF_START or FFBOP.EFF_SOLO)) return;
                 if (op.EffectOp == FFBOP.EFF_SOLO) StopAll();
+                _stoppedBlocks.Remove(index);
+                _deviceReset = false;
                 state.Running = true;
                 state.StartPending = true;
                 state.Iterations = (op.LoopCount is 0 or 255) ? -1 : op.LoopCount;
@@ -199,6 +240,7 @@ public sealed class FfbProtocol
     {
         foreach (var (id, state) in _effects)
         {
+            _stoppedBlocks.Add(id);
             state.Running = false;
             state.StartPending = false;
             _sink.Stop(id);

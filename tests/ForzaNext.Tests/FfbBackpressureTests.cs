@@ -152,4 +152,63 @@ public sealed class FfbBackpressureTests
         Assert.Single(block2Constants);
         Assert.Equal(250, block2Constants[0]);
     }
+
+    [Fact]
+    public void AttachingToAlreadyRunningGameStreamsConstantForceWithoutPrecedingReportOrStart()
+    {
+        var sink = new Sink();
+        var protocol = new FfbProtocol(sink);
+        protocol.Process(Constant(1, 5000));
+        Assert.Single(sink.Applied);
+        Assert.Equal(((byte)1, 5000, true), sink.Applied[0]);
+    }
+
+    [Fact]
+    public void AttachingToAlreadyRunningGameProcessesBatchWithoutPrecedingReportOrStart()
+    {
+        var sink = new Sink();
+        var protocol = new FfbProtocol(sink);
+        protocol.ProcessBatch(new[] { Constant(1, 2000), Constant(1, 4500) });
+        Assert.Single(sink.Applied);
+        Assert.Equal(((byte)1, 4500, true), sink.Applied[0]);
+    }
+
+    [Fact]
+    public void StoppedEffectDoesNotResumeUntilExplicitStartEvenIfParameterArrives()
+    {
+        var sink = new Sink();
+        var protocol = new FfbProtocol(sink);
+        protocol.Process(Constant(1, 5000));
+        Assert.Single(sink.Applied);
+
+        // Game pauses / stops the effect
+        protocol.Process(Op(1, FFBOP.EFF_STOP));
+        Assert.Contains((byte)1, sink.Stopped);
+
+        // Constant force updates continue arriving while paused (e.g. 0 force)
+        protocol.Process(Constant(1, 0));
+        // Should NOT have applied again while stopped
+        Assert.Single(sink.Applied);
+
+        // Game resumes
+        protocol.Process(Op(1, FFBOP.EFF_START));
+        Assert.Equal(2, sink.Applied.Count);
+        Assert.Equal(((byte)1, 0, true), sink.Applied[1]);
+    }
+
+    [Fact]
+    public void AttachingToAlreadyRunningGameAdoptsConditionAndPeriodicEffects()
+    {
+        var sink = new Sink();
+        var protocol = new FfbProtocol(sink);
+        var cond = new FfbEffCond { EffectBlockIndex = 2, CenterPointOffset = 0, DeadBand = 0, PosCoeff = 1000, NegCoeff = 1000, isY = 0 };
+        var periodic = new FfbEffPeriod { EffectBlockIndex = 3, Magnitude = 5000, Period = 100 };
+
+        protocol.Process(new FfbPacket(FFBPType.PT_CONDREP, cond));
+        protocol.Process(new FfbPacket(FFBPType.PT_PRIDREP, periodic));
+
+        Assert.Equal(2, sink.Applied.Count);
+        Assert.Contains(sink.Applied, a => a.Id == 2 && a.Start);
+        Assert.Contains(sink.Applied, a => a.Id == 3 && a.Start);
+    }
 }
