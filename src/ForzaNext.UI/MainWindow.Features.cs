@@ -16,6 +16,7 @@ public partial class MainWindow
     private bool _loadingProfiles, _calibrating;
     private string? _pendingUpdate;
     private UpdateCheckResult? _latestUpdateCheck;
+    private CancellationTokenSource? _updateDownloadCts;
 
     public async Task CheckForUpdatesAsync(bool userInitiated = true)
     {
@@ -60,6 +61,15 @@ public partial class MainWindow
 
     private async void ApplyUpdate_Click(object sender, RoutedEventArgs e)
     {
+        // Se uma atualização já foi baixada e está pendente, executa diretamente
+        if (_pendingUpdate != null && File.Exists(_pendingUpdate))
+        {
+            TxtUpdateStatus.Text = "Iniciando instalação da atualização...";
+            _calibrating = false;
+            Close();
+            return;
+        }
+
         if (_latestUpdateCheck == null || !_latestUpdateCheck.UpdateAvailable || _latestUpdateCheck.Manifest == null)
             return;
 
@@ -85,6 +95,9 @@ public partial class MainWindow
             PbUpdateProgress.Value = 0;
         }
 
+        _updateDownloadCts?.Dispose();
+        _updateDownloadCts = new CancellationTokenSource();
+
         try
         {
             TxtUpdateStatus.Text = $"Baixando ForzaNext Wheel v{manifest.Version}...";
@@ -103,11 +116,35 @@ public partial class MainWindow
                 _latestUpdateCheck,
                 current,
                 Path.Combine(AppPaths.DataDirectory, "Updates"),
-                progress);
+                progress,
+                _updateDownloadCts.Token);
 
-            TxtUpdateStatus.Text = "Download concluído e integridade SHA-256 verificada com sucesso!";
+            if (PbUpdateProgress != null) PbUpdateProgress.Value = 100;
+            TxtUpdateStatus.Text = "Download concluído! Fechando o ForzaNext Wheel para iniciar o instalador...";
+            TxtConsole.Text = "Atualização pronta. Fechando o ForzaNext Wheel...";
             _pendingUpdate = prepared.Installer;
+
+            if (BtnApplyUpdate != null)
+            {
+                BtnApplyUpdate.Content = "Instalar Agora";
+                BtnApplyUpdate.IsEnabled = true;
+            }
+
+            // Libera calibrating antes de fechar para não barrar o fechamento no MainWindow_Closing
+            _calibrating = false;
+            UpdatePresentation();
+
+            // Breve intervalo para visualização dos 100%
+            await Task.Delay(350);
+
             Close();
+        }
+        catch (OperationCanceledException)
+        {
+            TxtUpdateStatus.Text = "Download da atualização cancelado.";
+            if (BtnApplyUpdate != null) BtnApplyUpdate.IsEnabled = true;
+            if (BtnCheckUpdates != null) BtnCheckUpdates.IsEnabled = true;
+            if (PbUpdateProgress != null) PbUpdateProgress.Visibility = Visibility.Collapsed;
         }
         catch (Exception ex)
         {
@@ -148,8 +185,16 @@ public partial class MainWindow
     private void LaunchPendingUpdate()
     {
         if (_pendingUpdate == null) return;
-        try { System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_pendingUpdate) { UseShellExecute = true }); }
-        catch (Exception ex) { MessageBox.Show(this, "Não foi possível abrir o instalador: " + ex.Message, "Atualização"); }
+        try
+        {
+            LogTrace($"Iniciando instalador da atualização: {_pendingUpdate}");
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(_pendingUpdate) { UseShellExecute = true });
+        }
+        catch (Exception ex)
+        {
+            LogTrace("Erro ao iniciar instalador: " + ex);
+            MessageBox.Show(this, "Não foi possível abrir o instalador: " + ex.Message, "Atualização");
+        }
     }
     private IReadOnlyList<ConnectedDeviceInfo> _availableDevices = Array.Empty<ConnectedDeviceInfo>();
     private void InitializeGameProfiles()

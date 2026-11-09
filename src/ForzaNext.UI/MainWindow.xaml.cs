@@ -689,14 +689,20 @@ public partial class MainWindow : Window
     {
         if (_canClose) return;
         e.Cancel = true;
-        if (_calibrating) { TxtConsole.Text = "Conclua ou feche a operação atual antes de sair."; return; }
+
+        if (_updateDownloadCts != null && !_updateDownloadCts.IsCancellationRequested)
+        {
+            try { _updateDownloadCts.Cancel(); } catch { }
+        }
+
+        if (_calibrating && _pendingUpdate == null) { TxtConsole.Text = "Conclua ou feche a operação atual antes de sair."; return; }
         if (_setupBusy)
         {
             TxtConsole.Text = "Preparação do driver em andamento. Aguarde a conclusão ou cancele a autorização do Windows.";
             return;
         }
         if (_closing) return;
-        if (_viewModel.IsDirty)
+        if (_viewModel.IsDirty && _pendingUpdate == null)
         {
             var choice = MessageBox.Show("Deseja salvar as alterações no seu perfil antes de sair?", "Alterações não salvas", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
             if (choice == MessageBoxResult.Cancel) return;
@@ -723,6 +729,13 @@ public partial class MainWindow : Window
         }
         _canClose = true;
         LaunchPendingUpdate();
-        _ = Dispatcher.BeginInvoke(new Action(Close));
+        _ = Dispatcher.BeginInvoke(new Action(() =>
+        {
+            Close();
+            if (_pendingUpdate != null)
+            {
+                Application.Current.Shutdown();
+            }
+        }));
     }
 }
