@@ -87,6 +87,7 @@ public class DPadMapping
 
 public class FFBParameters
 {
+    [JsonPropertyName("InvertConstantForce")]
     public bool InvertConstantForce { get; set; } = true;
     [JsonPropertyName("Const")]
     public ConstantForceConfig? Const { get; set; }
