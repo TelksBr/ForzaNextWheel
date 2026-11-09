@@ -52,7 +52,7 @@ public sealed class WheelSession
     }
 
     public WheelSession(List<ControllerProfile> profiles, IntPtr window, FFBConfiguration configuration)
-        : this(profiles, configuration, () => new DeviceWorkerProcess(), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(5)) { }
+        : this(profiles, configuration, () => new DeviceWorkerProcess(), TimeSpan.FromSeconds(8), TimeSpan.FromSeconds(15)) { }
 
     internal WheelSession(List<ControllerProfile> profiles, FFBConfiguration configuration, Func<IWheelWorker> factory,
         TimeSpan startupTimeout, TimeSpan stallTimeout)
@@ -135,6 +135,10 @@ public sealed class WheelSession
         }
         finally
         {
+            if (Devices.HidHideService.IsInstalled)
+            {
+                try { Devices.HidHideService.UncloakSync(_profiles); } catch { }
+            }
             var worker = Volatile.Read(ref _worker);
             if (worker != null)
             {

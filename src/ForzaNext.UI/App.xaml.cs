@@ -86,12 +86,45 @@ public partial class App : Application
         bool owns;
         try { owns = _instance.WaitOne(0); } catch (AbandonedMutexException) { owns = true; }
         if (!owns) { _instance.Dispose(); _instance = null; MessageBox.Show("O ForzaNext já está aberto.", "ForzaNext"); Shutdown(); return; }
-        Exit += (_, _) => { _instance.ReleaseMutex(); _instance.Dispose(); };
-        AppDomain.CurrentDomain.UnhandledException += (_, ev) => DiagnosticLog.Write("Unhandled", ev.ExceptionObject.ToString() ?? "Unknown error");
+        
+        // Proactively uncloak devices on startup in case a previous session crashed unexpectedly
+        if (ForzaNext.Core.Devices.HidHideService.IsInstalled)
+        {
+            try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+        }
+
+        Exit += (_, _) =>
+        {
+            if (ForzaNext.Core.Devices.HidHideService.IsInstalled)
+            {
+                try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+            }
+            _instance.ReleaseMutex();
+            _instance.Dispose();
+        };
+        AppDomain.CurrentDomain.ProcessExit += (_, _) =>
+        {
+            if (ForzaNext.Core.Devices.HidHideService.IsInstalled)
+            {
+                try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+            }
+        };
+        AppDomain.CurrentDomain.UnhandledException += (_, ev) =>
+        {
+            DiagnosticLog.Write("Unhandled", ev.ExceptionObject.ToString() ?? "Unknown error");
+            if (ForzaNext.Core.Devices.HidHideService.IsInstalled)
+            {
+                try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+            }
+        };
         DispatcherUnhandledException += async (_, ev) =>
         {
             DiagnosticLog.Write("UI exception", ev.Exception.ToString());
             ev.Handled = true;
+            if (ForzaNext.Core.Devices.HidHideService.IsInstalled)
+            {
+                try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+            }
             if (MainWindow is MainWindow window) await window.HandleFailureAsync(ev.Exception);
             MessageBox.Show($"A operação foi interrompida: {ev.Exception.Message}", "ForzaNext");
         };

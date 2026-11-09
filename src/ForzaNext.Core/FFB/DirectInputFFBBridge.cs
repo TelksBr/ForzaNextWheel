@@ -50,6 +50,7 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
     private readonly Dictionary<byte, int> _magnitudes = new();
     private readonly Dictionary<byte, long> _deadlines = new();
     private readonly Dictionary<byte, FFBEType> _effectTypes = new();
+    private readonly Dictionary<byte, long> _lastConditionUpdate = new();
     private bool _actuatorsEnabled = true, _paused;
     private bool IsPlaying(byte index) => _actuatorsEnabled && !_paused && _deadlines.TryGetValue(index, out long deadline) && Environment.TickCount64 < deadline;
     public int ActiveEffectCount => _deadlines.Keys.Count(IsPlaying);
@@ -154,6 +155,17 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
         }
         else
         {
+            if (p.Parameters is ConditionSet)
+            {
+                long now = Environment.TickCount64;
+                if (!start && _lastConditionUpdate.TryGetValue(index, out long last) && now - last < 40)
+                {
+                    // Rate-limit condition reports to 25 Hz (40ms) to prevent USB PID endpoint starvation on Direct Drive wheels
+                    return;
+                }
+                _lastConditionUpdate[index] = now;
+            }
+
             var flags = FfbParameterChanges.Between(_parameters[index], p);
             if (flags != 0)
             {
@@ -220,6 +232,7 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
         _deadlines.Remove(index);
         _magnitudes.Remove(index);
         _effectTypes.Remove(index);
+        _lastConditionUpdate.Remove(index);
         if (_effects.Remove(index, out var effect))
         {
             try { effect.Stop(); } catch { }
@@ -231,6 +244,7 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
         if (control is FFB_CTRL.CTRL_STOPALL or FFB_CTRL.CTRL_DEVRST or FFB_CTRL.CTRL_DISACT)
         {
             _started.Clear();
+            _lastConditionUpdate.Clear();
         }
         FfbDebugLogger.Log("DINPUT-CTRL", $"Control={control}");
         if (control == FFB_CTRL.CTRL_DISACT) _actuatorsEnabled = false;

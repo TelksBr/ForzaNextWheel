@@ -305,11 +305,21 @@ public partial class MainWindow : Window
     private async Task StopFeedingAsync()
     {
         var session = _session;
-        if (session != null) await session.StopAsync();
-        if (ReferenceEquals(_session, session)) _session = null;
-        if (HidHideService.IsInstalled)
+        try
         {
-            try { await HidHideService.UncloakAsync(_profiles); } catch { }
+            if (session != null) await session.StopAsync();
+        }
+        catch (Exception ex)
+        {
+            DiagnosticLog.Write("StopFeeding", ex.Message);
+        }
+        finally
+        {
+            if (ReferenceEquals(_session, session)) _session = null;
+            if (HidHideService.IsInstalled)
+            {
+                try { await HidHideService.UncloakAsync(_profiles); } catch { }
+            }
         }
         _isFeeding = false;
         TxtVirtualStatus.Text = _virtualDeviceLifetime.IsActive ? "Preparado (sem transmissão)" : "Parado";

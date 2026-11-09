@@ -147,10 +147,18 @@ internal static class DeviceWorkerHost
         finally
         {
             lifetime.Cancel();
+            if (ForzaNext.Core.Devices.HidHideService.IsInstalled)
+            {
+                try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+            }
             if (observation != null)
             {
                 try { await observation.StopAsync().WaitAsync(TimeSpan.FromSeconds(1)); }
-                catch (TimeoutException) { Environment.Exit(2); }
+                catch (TimeoutException)
+                {
+                    try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
+                    Environment.Exit(2);
+                }
             }
             if (session != null)
             {
@@ -158,6 +166,7 @@ internal static class DeviceWorkerHost
                 catch (TimeoutException)
                 {
                     DiagnosticLog.Write("Worker exit", "Chamada nativa bloqueada; encerrando processo isolado.");
+                    try { ForzaNext.Core.Devices.HidHideService.UncloakSync(); } catch { }
                     Environment.Exit(2);
                 }
                 catch (Exception ex) { DiagnosticLog.Write("Worker cleanup", ex.ToString()); }
