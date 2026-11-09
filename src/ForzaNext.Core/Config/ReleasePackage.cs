@@ -17,13 +17,16 @@ public static class ReleasePackage
             ?? throw new InvalidDataException("Manifesto inválido.");
         if (manifest.Product != "ForzaNextWheel" || !System.Version.TryParse(manifest.Version, out var version) || version <= current)
             throw new InvalidDataException("O pacote não contém uma versão mais recente do ForzaNext.");
+        bool isInstaller = manifest.Package.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+                           manifest.Package.EndsWith(".msi", StringComparison.OrdinalIgnoreCase);
         if (string.IsNullOrWhiteSpace(manifest.Package) || manifest.Package != Path.GetFileName(manifest.Package) ||
-            manifest.Package.IndexOfAny(new[] { '/', '\\', ':' }) >= 0 || !manifest.Package.EndsWith(".exe", StringComparison.OrdinalIgnoreCase) ||
+            manifest.Package.IndexOfAny(new[] { '/', '\\', ':' }) >= 0 || !isInstaller ||
             manifest.Size is < 1 or > 536870912 || manifest.Sha256 == null || manifest.Sha256.Length != 64 || !manifest.Sha256.All(Uri.IsHexDigit))
             throw new InvalidDataException("Nome, tamanho ou checksum do instalador inválido.");
         string source = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(manifestPath))!, manifest.Package);
         Directory.CreateDirectory(stagingDirectory);
-        string destination = Path.Combine(stagingDirectory, Guid.NewGuid().ToString("N") + ".exe");
+        string ext = Path.GetExtension(manifest.Package);
+        string destination = Path.Combine(stagingDirectory, Guid.NewGuid().ToString("N") + ext);
         try
         {
             await using (var input = new FileStream(source, FileMode.Open, FileAccess.Read, FileShare.Read, 81920, true))

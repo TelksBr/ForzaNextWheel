@@ -16,3 +16,4 @@ tools/*.nupkg
 tools/InnoSetup/
 lib/
 vJoyInterface.dll
+.wix/

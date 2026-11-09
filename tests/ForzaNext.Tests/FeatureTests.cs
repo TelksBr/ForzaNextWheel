@@ -130,6 +130,15 @@ public sealed class FeatureTests : IDisposable
         File.WriteAllBytes(Path.Combine(_root, "setup.exe"), new byte[] { 9 });
         Assert.Equal(new byte[] { 1, 2, 3, 4 }, File.ReadAllBytes(prepared.Installer));
     }
+    [Fact] public async Task UpdateAcceptsMsiPackage()
+    {
+        byte[] bytes = new byte[] { 5, 6, 7, 8 };
+        string path = Manifest(package: "setup.msi", hash: Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(bytes)));
+        File.WriteAllBytes(Path.Combine(_root, "setup.msi"), bytes);
+        var prepared = await ReleasePackage.PrepareAsync(path, new(2, 1, 0), Path.Combine(_root, "Staging"));
+        Assert.EndsWith(".msi", prepared.Installer, StringComparison.OrdinalIgnoreCase);
+        Assert.Equal(bytes, File.ReadAllBytes(prepared.Installer));
+    }
     [Theory] [InlineData("../outside.exe")] [InlineData("C:\\outside.exe")] [InlineData("setup.zip")]
     public async Task UpdateRejectsPathsOutsidePackage(string package)
     {

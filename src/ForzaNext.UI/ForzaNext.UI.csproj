@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <EmbeddedResource Include="..\..\tools\vJoySetup-2.2.2.0.exe" LogicalName="ForzaNext.Dependencies.vJoySetup.exe" Condition="Exists('..\..\tools\vJoySetup-2.2.2.0.exe')" />
+    <Content Include="..\..\vJoyInterface.dll" Link="vJoyInterface.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" Condition="Exists('..\..\vJoyInterface.dll')" />
     <Content Include="..\..\dependencies\vjoy\LICENSE.txt" Link="licenses\vJoy-LICENSE.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <Content Include="..\..\configuration.json" Link="configuration.json" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
     <ProjectReference Include="..\ForzaNext.Core\ForzaNext.Core.csproj" />
@@ -14,6 +15,7 @@
     <PlatformTarget>x64</PlatformTarget>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
   </PropertyGroup>
 

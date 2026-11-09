@@ -1,0 +1,59 @@
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui">
+  <Package Name="ForzaNext Wheel"
+           Manufacturer="ForzaNext"
+           Version="$(var.Version)"
+           UpgradeCode="6C03E3BF-5C03-46DB-A24D-A53DB2E284F2"
+           Scope="perMachine">
+
+    <MajorUpgrade DowngradeErrorMessage="Uma versão mais recente do ForzaNext Wheel já está instalada." />
+    <MediaTemplate EmbedCab="yes" CompressionLevel="high" />
+
+    <StandardDirectory Id="ProgramFiles64Folder">
+      <Directory Id="INSTALLFOLDER" Name="ForzaNext Wheel" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="ForzaNext Wheel" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="DesktopFolder" />
+
+    <ComponentGroup Id="AppFiles" Directory="INSTALLFOLDER">
+      <Files Include="$(var.PublishDir)\**" />
+    </ComponentGroup>
+
+    <Component Id="ApplicationShortcuts" Directory="ApplicationProgramsFolder" Guid="D2A68482-B275-4309-847B-F3BC1EFD08B1">
+      <Shortcut Id="AppStartMenuShortcut"
+                Name="ForzaNext Wheel"
+                Description="Emulador de Volante e Direct Drive para Forza Horizon"
+                Target="[INSTALLFOLDER]ForzaNext.UI.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="AppIcon" />
+      <RemoveFolder Id="CleanUpStartMenu" Directory="ApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKLM" Key="Software\ForzaNext\ForzaNextWheel" Name="installed" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Component Id="DesktopShortcut" Directory="DesktopFolder" Guid="6A43B1A2-8F53-4824-A3D5-3E77C745672D">
+      <Shortcut Id="AppDesktopShortcut"
+                Name="ForzaNext Wheel"
+                Description="Emulador de Volante e Direct Drive para Forza Horizon"
+                Target="[INSTALLFOLDER]ForzaNext.UI.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="AppIcon" />
+      <RegistryValue Root="HKLM" Key="Software\ForzaNext\ForzaNextWheel" Name="desktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+    </Component>
+
+    <Feature Id="MainFeature" Title="ForzaNext Wheel" Level="1">
+      <ComponentGroupRef Id="AppFiles" />
+      <ComponentRef Id="ApplicationShortcuts" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+
+    <Icon Id="AppIcon" SourceFile="$(var.SourceDir)\app.ico" />
+    <Property Id="ARPPRODUCTICON" Value="AppIcon" />
+    <Property Id="ARPHELPLINK" Value="https://github.com/TelksBr/ForzaNextWheel" />
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+  </Package>
+</Wix>

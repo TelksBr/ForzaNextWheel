@@ -1,0 +1,77 @@
+name: Release Build and Publish
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Tag de versão (ex: v2.1.2)'
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build MSI and Publish Release
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Fetch vJoy dependency
+        shell: pwsh
+        run: ./scripts/fetch-vjoy.ps1
+
+      - name: Restore dotnet tools (WiX v5)
+        shell: pwsh
+        run: |
+          dotnet tool restore
+          dotnet wix extension add WixToolset.UI.wixext/5.0.2
+          dotnet wix extension add WixToolset.Util.wixext/5.0.2
+
+      - name: Run unit tests
+        shell: pwsh
+        run: dotnet test -c Release
+
+      - name: Build MSI, Portable ZIP and Manifests
+        shell: pwsh
+        run: ./scripts/build-release.ps1 -SkipExe
+
+      - name: Resolve Release Artifacts
+        id: vars
+        shell: pwsh
+        run: |
+          $version = ([xml](Get-Content -LiteralPath 'Directory.Build.props' -Raw)).Project.PropertyGroup.Version
+          $releasePath = "artifacts/release/$version"
+          Write-Output "version=$version" >> $env:GITHUB_OUTPUT
+          Write-Output "release_path=$releasePath" >> $env:GITHUB_OUTPUT
+          Write-Output "Tag / Versão resolvida: $version em $releasePath"
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "ForzaNext Wheel v${{ steps.vars.outputs.version }}"
+          tag_name: ${{ github.event.inputs.tag_name || github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            ${{ steps.vars.outputs.release_path }}/*.msi
+            ${{ steps.vars.outputs.release_path }}/*.zip
+            ${{ steps.vars.outputs.release_path }}/release.json
+            ${{ steps.vars.outputs.release_path }}/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
