@@ -1,5 +1,6 @@
 using SharpDX.DirectInput;
 using ForzaNext.Core.Config;
+using ForzaNext.Core.FFB;
 
 namespace ForzaNext.Core.Devices;
 
@@ -37,6 +38,7 @@ public sealed class DirectInputDeviceManager : IDisposable
     private bool _disposed;
     private JoystickState _state = new();
     private readonly Dictionary<Guid, bool> _autoCenters = new();
+    public string? LastError { get; private set; }
 
     public List<ConnectedDeviceInfo> EnumerateDevices()
     {
@@ -44,8 +46,9 @@ public sealed class DirectInputDeviceManager : IDisposable
         {
             ObjectDisposedException.ThrowIf(_disposed, this);
             var result = new List<ConnectedDeviceInfo>();
-            foreach (var dev in _directInput.GetDevices(DeviceClass.GameControl, DeviceEnumerationFlags.AttachedOnly))
+            foreach (var dev in _directInput.GetDevices())
             {
+                if (dev.Type is DeviceType.Mouse or DeviceType.Keyboard) continue;
                 bool hasFfb = false;
                 try
                 {
@@ -122,6 +125,7 @@ public sealed class DirectInputDeviceManager : IDisposable
             }
             catch (Exception ex)
             {
+                LastError = ex.Message;
                 DiagnosticLog.Write("Acquire", $"{instanceGuid}: {ex}");
                 joystick?.Dispose();
                 return null;
@@ -148,9 +152,37 @@ public sealed class DirectInputDeviceManager : IDisposable
                 output.IsValid = true;
                 return true;
             }
+            catch (SharpDX.SharpDXException sex) when (sex.ResultCode == ResultCode.InputLost || sex.ResultCode == ResultCode.NotAcquired)
+            {
+                DiagnosticLog.Write("Poll-Lost", $"{instanceGuid}: {sex.Message}. Tentando reaquisição...");
+                FfbDebugLogger.Log("DINPUT-REACQUIRE", $"Tentando reaquisição para {instanceGuid}");
+                try
+                {
+                    device.Acquire();
+                    device.Poll();
+                    device.GetCurrentState(ref _state);
+                    var state = _state;
+                    output.Axes[0] = state.X; output.Axes[1] = state.Y; output.Axes[2] = state.Z;
+                    output.Axes[3] = state.RotationX; output.Axes[4] = state.RotationY; output.Axes[5] = state.RotationZ;
+                    Array.Copy(state.Sliders, 0, output.Axes, 6, Math.Min(2, state.Sliders.Length));
+                    Array.Copy(state.Buttons, output.Buttons, Math.Min(128, state.Buttons.Length));
+                    Array.Copy(state.PointOfViewControllers, output.PointOfView, Math.Min(4, state.PointOfViewControllers.Length));
+                    output.IsValid = true;
+                    FfbDebugLogger.Log("DINPUT-REACQUIRE", $"Reaquisição bem-sucedida para {instanceGuid}");
+                    return true;
+                }
+                catch (Exception retryEx)
+                {
+                    DiagnosticLog.Write("Poll-Failed", $"{instanceGuid}: Reaquisição falhou: {retryEx.Message}");
+                    FfbDebugLogger.LogError("DINPUT-REACQUIRE", $"Reaquisição falhou para {instanceGuid}", retryEx);
+                    output.Invalidate();
+                    return false;
+                }
+            }
             catch (Exception ex)
             {
                 DiagnosticLog.Write("Poll", $"{instanceGuid}: {ex.Message}");
+                FfbDebugLogger.LogError("DINPUT-POLL", $"Erro ao ler dispositivo {instanceGuid}", ex);
                 output.Invalidate();
                 // The session stops on loss; no automatic reactivation of torque.
                 return false;

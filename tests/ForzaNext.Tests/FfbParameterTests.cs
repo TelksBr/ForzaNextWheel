@@ -38,10 +38,10 @@ public class FfbParameterTests
     }
 
     [Fact]
-    public void InfiniteAndZeroDurationRemainDistinct()
+    public void InfiniteDurationIsMappedFromZeroAndMaxValue()
     {
         Assert.Equal(-1, FfbParameterBuilder.Build(Constant(ushort.MaxValue), new(), 0.5, 0, 255).Duration);
-        Assert.Equal(0, FfbParameterBuilder.Build(Constant(0), new(), 0.5, 0, 255).Duration);
+        Assert.Equal(-1, FfbParameterBuilder.Build(Constant(0), new(), 0.5, 0, 255).Duration);
     }
 
     [Theory]
@@ -70,6 +70,37 @@ public class FfbParameterTests
         var parameters = FfbParameterBuilder.Build(state, new() { InvertConstantForce = invert }, 0.5, 0, 255);
         Assert.Equal(expected, ((ConstantForce)parameters.Parameters).Magnitude);
         Assert.Equal(new[] { 0 }, parameters.Directions);
+    }
+
+    [Theory]
+    [InlineData(64857, true, 679)]    // 64857 is -679 in 16-bit signed; inverted -> +679
+    [InlineData(64857, false, -679)]  // 64857 is -679 in 16-bit signed; non-inverted -> -679
+    [InlineData(65535, true, 1)]      // 65535 is -1 in 16-bit signed; inverted -> +1
+    [InlineData(65535, false, -1)]    // 65535 is -1 in 16-bit signed; non-inverted -> -1
+    [InlineData(64465, true, 1071)]   // 64465 is -1071 in 16-bit signed; inverted -> +1071
+    [InlineData(55536, true, 10000)]  // 55536 is -10000 in 16-bit signed; inverted -> +10000
+    [InlineData(133, true, -133)]     // 133 is +133; inverted -> -133
+    [InlineData(133, false, 133)]     // 133 is +133; non-inverted -> +133
+    public void VJoyZeroExtendedNegativeMagnitudeIsCorrectlyInterpretedAsSigned(int raw, bool invert, int expected)
+    {
+        var state = Constant();
+        state.Constant = new FfbEffConstant { Magnitude = raw };
+        var parameters = FfbParameterBuilder.Build(state, new() { InvertConstantForce = invert }, 0.5, 0, 255);
+        Assert.Equal(expected, ((ConstantForce)parameters.Parameters).Magnitude);
+    }
+
+    [Fact]
+    public void UnsignedConditionCoefficientsAreInterpretedAsSigned()
+    {
+        var state = new FfbEffectState
+        {
+            Report = new FfbEffReport { EffectType = FFBEType.ET_SPRNG, Gain = 255, Duration = 100 },
+            Condition = new FfbEffCond { PosCoeff = 65535, NegCoeff = 57536, PosSatur = 10000, NegSatur = 10000 }
+        };
+        var p = FfbParameterBuilder.Build(state, new() { SpringCoefficient = 1.0, MasterGain = 1.0 }, 0.5, 0, 255);
+        var condition = ((ConditionSet)p.Parameters).Conditions.Single();
+        Assert.Equal(-1, condition.PositiveCoefficient);
+        Assert.Equal(-8000, condition.NegativeCoefficient);
     }
 
     [Fact]

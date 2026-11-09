@@ -23,9 +23,15 @@ public static class VJoySetupService
     public static async Task<VJoyInspection> InspectAsync(CancellationToken token = default)
     {
         var worker = new DeviceWorkerProcess();
-        try { return await worker.InspectAsync(token).WaitAsync(TimeSpan.FromSeconds(5), token); }
+        try { return await worker.InspectAsync(token).WaitAsync(TimeSpan.FromSeconds(10), token); }
         catch (Exception ex) when (ex is not OperationCanceledException)
-        { return new(File.Exists(ConfigurationTool), false, false, VjdStatus.VJD_STAT_UNKN, 0, 0, Array.Empty<string>(), false, "Não foi possível verificar o driver: " + ex.Message); }
+        {
+            try { return VirtualWheelDriver.Inspect(); }
+            catch
+            {
+                return new(File.Exists(ConfigurationTool), false, false, VjdStatus.VJD_STAT_UNKN, 0, 0, Array.Empty<string>(), false, "Não foi possível verificar o driver: " + ex.Message);
+            }
+        }
         finally { await worker.AbortAsync(); }
     }
 

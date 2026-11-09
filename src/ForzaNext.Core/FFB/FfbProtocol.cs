@@ -144,18 +144,29 @@ public sealed class FfbProtocol
         switch (packet.Value)
         {
             case FfbEffReport r:
+                FfbDebugLogger.Log("PROTO-REPORT", $"Block={index} Type={r.EffectType} Dur={r.Duration} Gain={r.Gain} Dir={r.Direction} Polar={r.Polar}");
                 if (state.Report is { } old && old.EffectType != r.EffectType)
                 {
                     _sink.Free(index);
                     _effects[index] = state = new();
                 }
                 state.Report = r; break;
-            case FfbEffConstant c: state.Constant = c; break;
-            case FfbEffPeriod p: state.Periodic = p; break;
-            case FfbEffCond c when c.isY == 0: state.Condition = c; break;
-            case FfbEffRamp r: state.Ramp = r; break;
-            case FfbEffEnvelope e: state.Envelope = e; break;
+            case FfbEffConstant c:
+                FfbDebugLogger.Log("PROTO-CONST", $"Block={index} Mag={(short)c.Magnitude} (Raw={c.Magnitude})");
+                state.Constant = c; break;
+            case FfbEffPeriod p:
+                FfbDebugLogger.Log("PROTO-PERIOD", $"Block={index} Mag={(ushort)p.Magnitude} Period={p.Period} Phase={p.Phase} Offset={(short)p.Offset}");
+                state.Periodic = p; break;
+            case FfbEffCond c when c.isY == 0:
+                FfbDebugLogger.Log("PROTO-COND", $"Block={index} Center={(short)c.CenterPointOffset} Dead={(ushort)c.DeadBand} PosCoeff={(short)c.PosCoeff} NegCoeff={(short)c.NegCoeff}");
+                state.Condition = c; break;
+            case FfbEffRamp r:
+                FfbDebugLogger.Log("PROTO-RAMP", $"Block={index} Start={(short)r.Start} End={(short)r.End}");
+                state.Ramp = r; break;
+            case FfbEffEnvelope e:
+                state.Envelope = e; break;
             case FfbEffOp op:
+                FfbDebugLogger.Log("PROTO-OP", $"Block={index} Op={op.EffectOp} Loops={op.LoopCount}");
                 if (op.EffectOp == FFBOP.EFF_STOP)
                 {
                     state.Running = false; state.StartPending = false; _sink.Stop(index); return;
@@ -164,7 +175,7 @@ public sealed class FfbProtocol
                 if (op.EffectOp == FFBOP.EFF_SOLO) StopAll();
                 state.Running = true;
                 state.StartPending = true;
-                state.Iterations = op.LoopCount == 0 ? -1 : op.LoopCount;
+                state.Iterations = (op.LoopCount is 0 or 255) ? -1 : op.LoopCount;
                 break;
             default: return;
         }

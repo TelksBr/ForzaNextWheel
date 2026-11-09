@@ -258,6 +258,11 @@ public partial class MainWindow : Window
             if (_session != null) { await StopFeedingAsync(); return; }
             if (!await EnsureVirtualDeviceAsync()) return;
             SyncAxisInversions();
+            if (HidHideService.IsInstalled)
+            {
+                TxtConsole.Text = "Ocultando dispositivos físicos com HidHide...";
+                await HidHideService.ConfigureCloakingAsync(_profiles);
+            }
             TxtConsole.Text = "Adquirindo dispositivos e verificando FFB...";
             var session = new WheelSession(_profiles, _mainWindowHandle, CaptureFfbConfiguration());
             _session = session;
@@ -302,6 +307,10 @@ public partial class MainWindow : Window
         var session = _session;
         if (session != null) await session.StopAsync();
         if (ReferenceEquals(_session, session)) _session = null;
+        if (HidHideService.IsInstalled)
+        {
+            try { await HidHideService.UncloakAsync(_profiles); } catch { }
+        }
         _isFeeding = false;
         TxtVirtualStatus.Text = _virtualDeviceLifetime.IsActive ? "Preparado (sem transmissão)" : "Parado";
         UpdateSetupControls();
@@ -680,6 +689,10 @@ public partial class MainWindow : Window
         _detectCancel?.Cancel();
         await _detectionTask;
         await StopFeedingAsync();
+        if (HidHideService.IsInstalled)
+        {
+            try { await HidHideService.UncloakAsync(_profiles); } catch { }
+        }
         var stopped = await _virtualDeviceLifetime.StopAsync();
         if (!stopped.Success)
         {

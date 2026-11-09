@@ -42,6 +42,7 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
     private readonly HashSet<Guid> _supported;
     private int _axisOffset;
     private readonly HashSet<FFBEType> _unsupported = new();
+    private readonly HashSet<byte> _started = new();
     public string? Warning { get; private set; }
     public FFBConfiguration Config { get; set; } = new();
     public double NormalizedSteering { get; set; } = 0.5;
@@ -131,50 +132,107 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
             {
                 Warning = "Efeitos não suportados pelo volante: " + string.Join(", ", _unsupported);
                 DiagnosticLog.Write("Partial FFB", Warning);
+                FfbDebugLogger.Log("DINPUT-UNSUPPORTED", Warning);
             }
             return;
         }
         var p = FfbParameterBuilder.Build(state, Config, NormalizedSteering, _axisOffset, gain);
         if (!_effects.TryGetValue(index, out var effect))
         {
-            effect = new Effect(_joystick, guid, p);
-            _effects.Add(index, effect);
-            if (state.Running) start = true;
+            try
+            {
+                effect = new Effect(_joystick, guid, p);
+                _effects.Add(index, effect);
+                FfbDebugLogger.Log("DINPUT-CREATE", $"Block={index} Type={r.EffectType} Dur={p.Duration} Gain={p.Gain}");
+                if (state.Running) start = true;
+            }
+            catch (Exception ex)
+            {
+                FfbDebugLogger.LogError("DINPUT-ERROR", $"Falha ao criar efeito Bloco={index} Tipo={r.EffectType}", ex);
+                return;
+            }
         }
         else
         {
             var flags = FfbParameterChanges.Between(_parameters[index], p);
-            if (flags != 0) effect.SetParameters(p, flags | EffectParameterFlags.NoRestart);
+            if (flags != 0)
+            {
+                try
+                {
+                    effect.SetParameters(p, flags | EffectParameterFlags.NoRestart);
+                }
+                catch (Exception ex)
+                {
+                    FfbDebugLogger.LogError("DINPUT-WARN", $"SetParameters falhou com flags {flags}, tentando apenas TypeSpecificParameters", ex);
+                    try
+                    {
+                        effect.SetParameters(p, EffectParameterFlags.TypeSpecificParameters | EffectParameterFlags.NoRestart);
+                    }
+                    catch (Exception exFallback)
+                    {
+                        FfbDebugLogger.LogError("DINPUT-ERROR", $"SetParameters fallback também falhou para Bloco={index}", exFallback);
+                    }
+                }
+            }
         }
         _parameters[index] = p;
         if (p.Parameters is ConstantForce constant)
-            _magnitudes[index] = (int)(constant.Magnitude * p.Gain / 10000.0);
-        if (start)
         {
-            effect.Start(state.Iterations, EffectPlayFlags.None);
-            _deadlines[index] = r.Duration == ushort.MaxValue || state.Iterations < 0
+            int oldMag = _magnitudes.TryGetValue(index, out int m) ? m : int.MinValue;
+            _magnitudes[index] = (int)(constant.Magnitude * p.Gain / 10000.0);
+            if (oldMag != _magnitudes[index] || start)
+            {
+                FfbDebugLogger.Log("DINPUT-CONST", $"Block={index} Mag={constant.Magnitude} Gain={p.Gain} Out={_magnitudes[index]} Start={start}");
+            }
+        }
+        if (start || !_started.Contains(index))
+        {
+            try
+            {
+                effect.Start(state.Iterations, EffectPlayFlags.None);
+                _started.Add(index);
+                FfbDebugLogger.Log("DINPUT-START", $"Block={index} Iterations={state.Iterations}");
+            }
+            catch (Exception ex)
+            {
+                FfbDebugLogger.LogError("DINPUT-ERROR", $"Falha ao iniciar efeito Bloco={index}", ex);
+            }
+            _deadlines[index] = r.Duration == ushort.MaxValue || r.Duration == 0 || state.Iterations < 0
                 ? long.MaxValue : Environment.TickCount64 + (long)r.Duration * state.Iterations;
         }
     }
 
     public void Stop(byte index)
     {
-        if (_effects.TryGetValue(index, out var effect)) effect.Stop();
+        _started.Remove(index);
+        FfbDebugLogger.Log("DINPUT-STOP", $"Block={index}");
+        if (_effects.TryGetValue(index, out var effect))
+        {
+            try { effect.Stop(); } catch (Exception ex) { FfbDebugLogger.LogError("DINPUT-ERROR", $"Stop failed for Block={index}", ex); }
+        }
         _deadlines.Remove(index);
     }
     public void Free(byte index)
     {
+        _started.Remove(index);
+        FfbDebugLogger.Log("DINPUT-FREE", $"Block={index}");
         _parameters.Remove(index);
         _deadlines.Remove(index);
         _magnitudes.Remove(index);
         _effectTypes.Remove(index);
         if (_effects.Remove(index, out var effect))
         {
-            try { effect.Stop(); } finally { effect.Dispose(); }
+            try { effect.Stop(); } catch { }
+            try { effect.Dispose(); } catch (Exception ex) { FfbDebugLogger.LogError("DINPUT-ERROR", $"Dispose failed for Block={index}", ex); }
         }
     }
     public void Control(FFB_CTRL control)
     {
+        if (control is FFB_CTRL.CTRL_STOPALL or FFB_CTRL.CTRL_DEVRST or FFB_CTRL.CTRL_DISACT)
+        {
+            _started.Clear();
+        }
+        FfbDebugLogger.Log("DINPUT-CTRL", $"Control={control}");
         if (control == FFB_CTRL.CTRL_DISACT) _actuatorsEnabled = false;
         if (control == FFB_CTRL.CTRL_ENACT) _actuatorsEnabled = true;
         if (control == FFB_CTRL.CTRL_DEVPAUSE) _paused = true;
@@ -193,6 +251,7 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
     }
     public void StopAll()
     {
+        _started.Clear();
         foreach (var id in _effects.Keys.ToArray())
             try { Stop(id); } catch (Exception ex) { DiagnosticLog.Write("Stop effect", ex.ToString()); }
         try { _joystick.SendForceFeedbackCommand(ForceFeedbackCommand.StopAll); }

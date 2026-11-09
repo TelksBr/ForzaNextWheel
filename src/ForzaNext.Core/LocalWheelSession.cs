@@ -75,12 +75,18 @@ public sealed class LocalWheelSession
             Interlocked.Increment(ref _totalPackets);
             Volatile.Write(ref _lastPacketAt, Environment.TickCount64);
             var packet = FfbPacket.CopyFromNative(pointer, type);
-            if (packet == null) return;
+            if (packet == null)
+            {
+                if (type is not (FFBPType.PT_NEWEFREP or FFBPType.PT_SMPLREP or FFBPType.PT_BLKLDREP or FFBPType.PT_POOLREP))
+                    FfbDebugLogger.Log("VJOY-RECV-FAIL", $"CopyFromNative retornou nulo para {type}");
+                return;
+            }
             if ((uint)type < _packetKinds.Length) Interlocked.Increment(ref _packetKinds[(int)type]);
             if (!_packets.Enqueue(packet))
             {
                 DiagnosticLog.Write("FFB backpressure", $"Pending={_packets.Count}; Coalesced={_packets.Coalesced}; " +
                     string.Join(", ", _packetKinds.Select((count, index) => $"{(FFBPType)index}={count}")));
+                FfbDebugLogger.Log("FFB-BACKPRESSURE", $"Fila cheia! Pending={_packets.Count} Coalesced={_packets.Coalesced}");
                 Volatile.Write(ref _callbackError, "Fila FFB excedeu o limite; sessão interrompida.");
                 return;
             }
@@ -92,6 +98,7 @@ public sealed class LocalWheelSession
         DirectInputDeviceManager? devices = null;
         VirtualWheelDriver? virtualWheel = null;
         DirectInputFFBBridge? bridge = null;
+        NativeHiddenWindow? ownedWindow = null;
         TaskCompletionSource? testDone = null;
         MotorTest testType = default;
         long testStart = 0;
@@ -103,6 +110,18 @@ public sealed class LocalWheelSession
             var token = _cancel.Token;
             token.ThrowIfCancellationRequested();
             if (_profiles.Count == 0) throw new InvalidOperationException("Mapeie pelo menos um dispositivo antes de iniciar.");
+            if (HidHideService.IsInstalled)
+            {
+                try
+                {
+                    Stage("Ocultando dispositivos físicos (HidHide)...");
+                    HidHideService.ConfigureCloakingAsync(_profiles, token).GetAwaiter().GetResult();
+                }
+                catch (Exception ex)
+                {
+                    DiagnosticLog.Write("HidHide startup", ex.Message);
+                }
+            }
             Stage("Enumerando dispositivos físicos");
             devices = new DirectInputDeviceManager();
             var available = devices.EnumerateDevices().Where(d => !d.ProductName.Contains("vJoy", StringComparison.OrdinalIgnoreCase)).ToList();
@@ -124,13 +143,19 @@ public sealed class LocalWheelSession
             if (!virtualWheel.Initialize()) throw new InvalidOperationException(virtualWheel.LastError);
             virtualWheel.ValidateMappings(_profiles);
             SharpDX.DirectInput.Joystick? physical = null;
+            IntPtr windowHandle = _window;
+            if (windowHandle == IntPtr.Zero || !NativeHiddenWindow.IsWindowOwnedByCurrentProcess(windowHandle))
+            {
+                ownedWindow = new NativeHiddenWindow("ForzaNext DirectInput Host");
+                windowHandle = ownedWindow.Handle;
+            }
             foreach (var profile in _profiles)
             {
                 token.ThrowIfCancellationRequested();
                 Stage($"Adquirindo {profile.InstanceName} ({(profile == target ? "FFB exclusivo" : "somente entradas")})");
-                var joystick = devices.AcquireDevice(profile.InstanceGuid, _window, profile == target,
+                var joystick = devices.AcquireDevice(profile.InstanceGuid, windowHandle, profile == target,
                     step => Stage($"{profile.InstanceName}: {step}"))
-                    ?? throw new InvalidOperationException($"Falha ao adquirir {profile.InstanceName}.");
+                    ?? throw new InvalidOperationException($"Falha ao adquirir {profile.InstanceName}{(string.IsNullOrWhiteSpace(devices.LastError) ? "" : ": " + devices.LastError)}.");
                 if (profile == target) physical = joystick;
             }
             if (physical != null && virtualWheel.HasFfb)
@@ -190,7 +215,7 @@ public sealed class LocalWheelSession
                         protocol!.Refresh();
                     }
                     _packets.Drain(packetBatch);
-                    if (testDone == null) protocol!.ProcessBatch(packetBatch);
+                    if (packetBatch.Count > 0 && testDone == null) protocol!.ProcessBatch(packetBatch);
                     if (testDone == null && _tests.TryDequeue(out var test))
                     {
                         protocol!.StopAll(); bridge.StopAll();
@@ -264,6 +289,8 @@ public sealed class LocalWheelSession
             Cleanup(() => bridge?.Dispose(), "FFB cleanup");
             Cleanup(() => virtualWheel?.Dispose(), "Virtual cleanup");
             Cleanup(() => devices?.Dispose(), "Device cleanup");
+            Cleanup(() => ownedWindow?.Dispose(), "Window cleanup");
+            Cleanup(() => HidHideService.UncloakSync(_profiles), "HidHide uncloak");
             Volatile.Write(ref _telemetry, new(InputAggregator.NeutralPosition(), 0, 0, 0, status));
             if (failure != null) _started.TrySetException(failure);
             else _started.TrySetCanceled();

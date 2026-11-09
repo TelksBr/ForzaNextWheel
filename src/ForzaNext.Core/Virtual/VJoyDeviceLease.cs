@@ -136,7 +136,19 @@ public sealed class VJoyDeviceLease : IVJoyDeviceLease
                 return 2;
             }
             target = VJoyDeviceNode.Load();
-            if (target != null && VJoyDeviceNode.Enable(target)) await Task.Delay(1000);
+            if (target != null)
+            {
+                if (VJoyDeviceNode.Enable(target)) await Task.Delay(1000);
+            }
+            else
+            {
+                try
+                {
+                    target = VJoyDeviceNode.FindDeviceOne();
+                    if (target != null && VJoyDeviceNode.Enable(target)) await Task.Delay(1000);
+                }
+                catch { }
+            }
             bool install = !File.Exists(VJoySetupService.ConfigurationTool);
             int prepared = await VJoySetupService.RunElevatedAsync(install);
             if (prepared != 0)
@@ -147,7 +159,7 @@ public sealed class VJoyDeviceLease : IVJoyDeviceLease
                     : "O Windows não concluiu a preparação do vJoy. Consulte o log da aplicação."));
                 return prepared;
             }
-            var inspection = await VJoySetupService.InspectAsync();
+            var inspection = VirtualWheelDriver.Inspect();
             if (!inspection.ConfigurationReady || inspection.Busy) throw new IOException(inspection.Summary);
             target = VJoyDeviceNode.FindDeviceOne();
             VJoyDeviceNode.Save(target);
@@ -172,19 +184,17 @@ public sealed class VJoyDeviceLease : IVJoyDeviceLease
         {
             if (ownsMutex)
             {
-                if (target != null)
+                try
                 {
-                    try
-                    {
-                        // Give our device worker time to release the virtual handle after a parent crash.
-                        for (int attempt = 0; attempt < 30 && NativeVJoy.GetVJDStatus(1) == VjdStatus.VJD_STAT_BUSY; attempt++)
-                            await Task.Delay(100);
-                        if (NativeVJoy.GetVJDStatus(1) is VjdStatus.VJD_STAT_BUSY or VjdStatus.VJD_STAT_OWN)
-                            throw new IOException("Outro processo ainda usa o vJoy 1; ele não foi desativado.");
-                        VJoyDeviceNode.Disable(target);
-                    }
-                    catch (Exception ex) { DiagnosticLog.Write("Disable vJoy 1", ex.ToString()); stopped = new(false, false, false, ex.Message); }
+                    // Give any worker time to release the virtual handle
+                    for (int attempt = 0; attempt < 30 && NativeVJoy.GetVJDStatus(1) == VjdStatus.VJD_STAT_BUSY; attempt++)
+                        await Task.Delay(100);
+                    if (NativeVJoy.GetVJDStatus(1) is VjdStatus.VJD_STAT_BUSY or VjdStatus.VJD_STAT_OWN)
+                        NativeVJoy.RelinquishVJD(1);
+                    NativeVJoy.ResetVJD(1);
                 }
+                catch (Exception ex) { DiagnosticLog.Write("Relinquish vJoy 1", ex.ToString()); }
+
                 if (writer != null)
                     try { await Send("lease-stopped", stopped); } catch (Exception ex) { DiagnosticLog.Write("vJoy guardian stop response", ex.Message); }
                 mutex.ReleaseMutex();

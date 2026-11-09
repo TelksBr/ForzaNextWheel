@@ -1,4 +1,5 @@
 using System.Runtime.InteropServices;
+using ForzaNext.Core.FFB;
 
 namespace ForzaNext.Core.Virtual;
 
@@ -37,6 +38,7 @@ public sealed class VirtualWheelDriver : IDisposable
                 if (!NativeVJoy.ResetVJD(DeviceId)) throw new InvalidOperationException("Falha ao resetar vJoy 1.");
                 HasFfb = NativeVJoy.IsDeviceFfb(DeviceId);
                 NativeVJoy.FfbRegisterGenCB(Callback, IntPtr.Zero);
+                try { NativeVJoy.FfbStart(DeviceId); } catch { }
                 Volatile.Write(ref _owner, this);
                 if (!Neutralize()) throw new InvalidOperationException("Falha ao enviar estado neutro ao vJoy.");
                 LastError = null;
@@ -88,16 +90,34 @@ public sealed class VirtualWheelDriver : IDisposable
     private static void OnNativeFfb(IntPtr data, IntPtr userData)
     {
         var owner = Volatile.Read(ref _owner);
-        if (owner == null || data == IntPtr.Zero) return;
+        if (owner == null || data == IntPtr.Zero)
+        {
+            FfbDebugLogger.Log("VJOY-DROP-NULL", $"ownerNull={owner == null} dataZero={data == IntPtr.Zero}");
+            return;
+        }
         try
         {
-            int id = 0;
             var type = FFBPType.PT_EFFREP;
-            if (NativeVJoy.Ffb_h_DeviceID(data, ref id) == 0 && id == DeviceId &&
-                NativeVJoy.Ffb_h_Type(data, ref type) == 0)
-                owner.FfbPacketReceived?.Invoke(data, type);
+            uint typeRes = NativeVJoy.Ffb_h_Type(data, ref type);
+            if (typeRes != 0)
+            {
+                FfbDebugLogger.Log("VJOY-TYPE-ERR", $"Ffb_h_Type error {typeRes}");
+                return;
+            }
+            int id = 0;
+            // Only filter out if Ffb_h_DeviceID succeeded AND explicitly points to a different virtual device (> 1)
+            if (NativeVJoy.Ffb_h_DeviceID(data, ref id) == 0 && id > 1 && id != DeviceId)
+            {
+                FfbDebugLogger.Log("VJOY-MISMATCH", $"id={id} type={type}");
+                return;
+            }
+            owner.FfbPacketReceived?.Invoke(data, type);
         }
-        catch (Exception ex) { DiagnosticLog.Write("FFB callback", ex.ToString()); }
+        catch (Exception ex)
+        {
+            FfbDebugLogger.Log("VJOY-EX", ex.ToString());
+            DiagnosticLog.Write("FFB callback", ex.ToString());
+        }
     }
 
     public bool Feed(ref JoystickPositionV2 state)

@@ -170,12 +170,18 @@ public class InputAggregator
         {
             if (isSteering)
             {
-                // Steering deadzone around center
+                // Steering deadzone around center with smooth linear ramp to prevent step notch
                 double center = 0.5;
                 double diff = norm - center;
-                if (Math.Abs(diff) < (deadzone / 2.0))
+                double halfDead = deadzone / 2.0;
+                if (Math.Abs(diff) <= halfDead)
                 {
                     norm = center;
+                }
+                else
+                {
+                    double sign = Math.Sign(diff);
+                    norm = center + sign * ((Math.Abs(diff) - halfDead) / (0.5 - halfDead)) * 0.5;
                 }
             }
             else
