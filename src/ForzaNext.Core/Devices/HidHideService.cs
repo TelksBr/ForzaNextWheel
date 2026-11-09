@@ -39,6 +39,7 @@ public static class HidHideService
             {
                 foreach (var p in profiles)
                 {
+                    if (p.ProductGuid == Guid.Empty) continue;
                     string hex = p.ProductGuid.ToString("N");
                     string pid = hex[..4];
                     string vid = hex.Substring(4, 4);

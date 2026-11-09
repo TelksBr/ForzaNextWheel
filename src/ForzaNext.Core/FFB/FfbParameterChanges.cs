@@ -29,7 +29,7 @@ public static class FfbParameterChanges
 
     private static bool SameConditions(Condition[] a, Condition[] b)
     {
-        if (a.Length != b.Length) return false;
+        if (a == null || b == null || a.Length != b.Length) return false;
         for (int i = 0; i < a.Length; i++)
         {
             var ca = a[i]; var cb = b[i];

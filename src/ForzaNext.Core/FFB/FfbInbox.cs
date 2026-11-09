@@ -28,7 +28,11 @@ public sealed class FfbInbox
             bool parameter = id != 0 || packet.Type == FFBPType.PT_GAINREP;
             if (packet.Value is FfbEffReport report)
             {
-                if (_types.TryGetValue(id, out var type) && type != report.EffectType) _pending.Clear();
+                if (_types.TryGetValue(id, out var type) && type != report.EffectType)
+                {
+                    var keysToRemove = _pending.Keys.Where(k => k.Item2 == id).ToList();
+                    foreach (var k in keysToRemove) _pending.Remove(k);
+                }
                 _types[id] = report.EffectType;
             }
             if (!parameter)

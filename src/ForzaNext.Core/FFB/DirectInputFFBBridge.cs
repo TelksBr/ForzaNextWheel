@@ -197,7 +197,8 @@ public sealed class DirectInputFFBBridge : IFfbEffectSink, IDisposable
                 FfbDebugLogger.Log("DINPUT-CONST", $"Block={index} Mag={constant.Magnitude} Gain={p.Gain} Out={_magnitudes[index]} Start={start}");
             }
         }
-        if (start || !_started.Contains(index))
+        bool shouldStart = start || !_started.Contains(index) || (state.Running && !IsPlaying(index));
+        if (shouldStart)
         {
             try
             {

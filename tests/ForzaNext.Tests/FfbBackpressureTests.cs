@@ -124,4 +124,32 @@ public sealed class FfbBackpressureTests
         }
         await producer; Assert.Equal(99999, last);
     }
+
+    [Fact]
+    public void TypeChangeOnBlockOneDoesNotInvalidateCoalescingOnBlockTwo()
+    {
+        var inbox = new FfbInbox();
+        var packets = new List<FfbPacket>();
+        inbox.Enqueue(Report(1, FFBEType.ET_CONST));
+        inbox.Enqueue(Constant(1, 100));
+        inbox.Enqueue(Report(2, FFBEType.ET_CONST));
+        inbox.Enqueue(Constant(2, 200));
+
+        // Block 1 changes type to RAMP
+        inbox.Enqueue(Report(1, FFBEType.ET_RAMP));
+
+        // Block 2 updates its constant magnitude
+        inbox.Enqueue(Constant(2, 250));
+
+        // Block 2 constant should coalesce with the previous Block 2 constant
+        Assert.Equal(1, inbox.Coalesced);
+
+        inbox.Drain(packets);
+        var block2Constants = packets
+            .Where(p => p.Value is FfbEffConstant c && c.EffectBlockIndex == 2)
+            .Select(p => ((FfbEffConstant)p.Value).Magnitude)
+            .ToList();
+        Assert.Single(block2Constants);
+        Assert.Equal(250, block2Constants[0]);
+    }
 }

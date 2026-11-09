@@ -30,7 +30,11 @@ public static class FfbParameterBuilder
         double value = signedRaw * config.ConstantForceScale;
         if (value != 0) value = Math.CopySign(Math.Max(Math.Abs(value), config.MinimumForce * 10000), value);
         if (Math.Abs(value) > config.FilterThreshold * 10000)
-            value *= 1 - Math.Abs(steering - 0.5) * 2 * (1 - config.MinimumCoefficient);
+        {
+            double clampedSteering = Math.Clamp(steering, 0.0, 1.0);
+            double lockFactor = Math.Abs(clampedSteering - 0.5) * 2.0; // 0.0 at center, 1.0 at full lock
+            value *= 1.0 - lockFactor * (1.0 - Math.Clamp(config.MinimumCoefficient, 0.0, 1.0));
+        }
         return (int)Math.Clamp(Math.Round(value * (config.InvertConstantForce ? -1 : 1)), -10000, 10000);
     }
 
@@ -95,9 +99,14 @@ public static class FfbParameterBuilder
                 double frequency = config.SineFrequency <= 0 ? 1.0 : config.SineFrequency;
                 if (r.Gain == 32) { mag *= config.GearShiftStrength; frequency = config.GearShiftFrequency; }
                 else if (r.Gain == 1) { mag *= config.EngineVibrationStrength; frequency = config.EngineVibrationFrequency; }
-                mag = Math.Clamp(mag, config.SineMinimumForce * 10000, config.SineMaximumForce * 10000);
+                if (mag > 0)
+                    mag = Math.Clamp(mag, config.SineMinimumForce * 10000, config.SineMaximumForce * 10000);
+                else
+                    mag = 0;
+                int rawPhase = (int)Math.Round(periodic.Phase + config.SinePhase * 36000);
+                int normalizedPhase = ((rawPhase % 36000) + 36000) % 36000;
                 p.Parameters = new PeriodicForce { Magnitude = (int)mag, Offset = Math.Clamp((int)periodicOffset, -10000, 10000),
-                    Phase = (int)((periodic.Phase + config.SinePhase * 35999) % 36000),
+                    Phase = normalizedPhase,
                     Period = (int)Math.Clamp(periodic.Period * 1000.0 / Math.Max(0.01, frequency), 1, int.MaxValue) };
                 break;
         }

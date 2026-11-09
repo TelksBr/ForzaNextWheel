@@ -313,13 +313,13 @@ public sealed class LocalWheelSession
     }
     private static void StartTest(DirectInputFFBBridge bridge, MotorTest type, bool reverse)
     {
+        byte gain = (byte)(type == MotorTest.Shift ? 32 : (type == MotorTest.Engine ? 1 : 255));
         var state = new FfbEffectState
         {
             Report = new FfbEffReport { EffectType = type == MotorTest.Rack ? FFBEType.ET_CONST : FFBEType.ET_SINE,
-                Duration = (ushort)(type == MotorTest.Rack ? 250 : 350), Gain = 255, Polar = 1, Direction = 64 },
+                Duration = (ushort)(type == MotorTest.Rack ? 250 : 350), Gain = gain, Polar = 1, Direction = 64 },
             Constant = new FfbEffConstant { Magnitude = reverse ? -3500 : 3500 },
-            Periodic = new FfbEffPeriod { Magnitude = (uint)(10000 * (type == MotorTest.Shift ? bridge.Config.GearShiftStrength : bridge.Config.EngineVibrationStrength)),
-                Period = (uint)(50 / Math.Max(0.01, type == MotorTest.Shift ? bridge.Config.GearShiftFrequency : bridge.Config.EngineVibrationFrequency)) },
+            Periodic = new FfbEffPeriod { Magnitude = 10000, Period = 50 },
             Running = true, Iterations = 1
         };
         bridge.Apply(0, state, 255, true);

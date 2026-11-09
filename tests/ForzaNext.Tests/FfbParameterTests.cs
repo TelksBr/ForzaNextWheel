@@ -156,4 +156,84 @@ public class FfbParameterTests
     [Fact]
     public void IncompleteEffectCannotBuildNativeParameters()
         => Assert.Throws<InvalidOperationException>(() => FfbParameterBuilder.Build(new(), new(), 0.5, 0, 255));
+
+    [Fact]
+    public void PeriodicZeroMagnitudeYieldsZeroEvenWithMinimumForce()
+    {
+        var state = new FfbEffectState
+        {
+            Report = new FfbEffReport { EffectType = FFBEType.ET_SINE, Gain = 255, Duration = 1000 },
+            Periodic = new FfbEffPeriod { Magnitude = 0, Period = 50 }
+        };
+        var p = FfbParameterBuilder.Build(state, new() { SineMinimumForce = 0.05, SineMaximumForce = 0.5 }, 0.5, 0, 255);
+        var sine = (PeriodicForce)p.Parameters;
+        Assert.Equal(0, sine.Magnitude);
+    }
+
+    [Theory]
+    [InlineData(0, -0.25, 27000)]
+    [InlineData(0, -0.5, 18000)]
+    [InlineData(1000, -0.1, 33400)]
+    [InlineData(0, 0.5, 18000)]
+    public void PeriodicPhaseWrappingIsAlwaysNonNegative(int initialPhase, double sinePhaseConfig, int expectedPhase)
+    {
+        var state = new FfbEffectState
+        {
+            Report = new FfbEffReport { EffectType = FFBEType.ET_SINE, Gain = 255, Duration = 1000 },
+            Periodic = new FfbEffPeriod { Magnitude = 1000, Period = 50, Phase = (uint)initialPhase }
+        };
+        var p = FfbParameterBuilder.Build(state, new() { SinePhase = sinePhaseConfig }, 0.5, 0, 255);
+        var sine = (PeriodicForce)p.Parameters;
+        Assert.InRange(sine.Phase, 0, 35999);
+        Assert.Equal(expectedPhase, sine.Phase);
+    }
+
+    [Theory]
+    [InlineData(1.0, 1000, 0.1)]
+    [InlineData(1.1, 1000, 0.1)]
+    [InlineData(-0.1, 1000, 0.1)]
+    [InlineData(1.5, 1000, 0.1)]
+    public void SteeringOvershootDoesNotInvertForce(double steering, int rawMag, double minCoeff)
+    {
+        var state = Constant();
+        state.Constant = new FfbEffConstant { Magnitude = rawMag };
+        var p = FfbParameterBuilder.Build(state, new() { InvertConstantForce = false, MinimumCoefficient = minCoeff, FilterThreshold = 0.01 }, steering, 0, 255);
+        var cf = (ConstantForce)p.Parameters;
+        Assert.True(cf.Magnitude > 0, $"Magnitude was inverted: {cf.Magnitude} for steering {steering}");
+        Assert.InRange(cf.Magnitude, 90, 1000);
+    }
+
+    [Fact]
+    public void ShiftAndEngineGainReportsScaleStrengthAndFrequencyStandardized()
+    {
+        var shiftState = new FfbEffectState
+        {
+            Report = new FfbEffReport { EffectType = FFBEType.ET_SINE, Gain = 32, Duration = 250 },
+            Periodic = new FfbEffPeriod { Magnitude = 10000, Period = 50 }
+        };
+        var engineState = new FfbEffectState
+        {
+            Report = new FfbEffReport { EffectType = FFBEType.ET_SINE, Gain = 1, Duration = 350 },
+            Periodic = new FfbEffPeriod { Magnitude = 10000, Period = 50 }
+        };
+        var config = new FFBConfiguration
+        {
+            GearShiftStrength = 0.8,
+            GearShiftFrequency = 2.0,
+            EngineVibrationStrength = 0.2,
+            EngineVibrationFrequency = 0.5,
+            SineMaximumForce = 1.0,
+            SineMinimumForce = 0.0
+        };
+
+        var pShift = FfbParameterBuilder.Build(shiftState, config, 0.5, 0, 255);
+        var sineShift = (PeriodicForce)pShift.Parameters;
+        Assert.Equal(8000, sineShift.Magnitude);
+        Assert.Equal(25000, sineShift.Period);
+
+        var pEngine = FfbParameterBuilder.Build(engineState, config, 0.5, 0, 255);
+        var sineEngine = (PeriodicForce)pEngine.Parameters;
+        Assert.Equal(2000, sineEngine.Magnitude);
+        Assert.Equal(100000, sineEngine.Period);
+    }
 }
